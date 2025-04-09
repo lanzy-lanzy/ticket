@@ -1,0 +1,41 @@
+{% for vehicle_type in vehicle_types %}
+<div id="vehicle-type-{{ vehicle_type.id }}" class="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:shadow transition-shadow duration-200">
+    <div class="flex-1">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-100 rounded-full p-2">
+                <i class="fas fa-truck text-blue-600"></i>
+            </div>
+            <div>
+                <h4 class="font-medium text-gray-900">{{ vehicle_type.name }}</h4>
+                <div class="mt-1 text-sm text-gray-600 space-x-4">
+                    <span><i class="fas fa-users mr-1"></i>Max Occupants: {{ vehicle_type.max_occupants }}</span>
+                    <span><i class="fas fa-weight mr-1"></i>Max Cargo: {{ vehicle_type.max_cargo_weight }} tons</span>
+                    <span><i class="fas fa-money-bill mr-1"></i>Base Fare: ₱{{ vehicle_type.base_fare|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex items-center space-x-3">
+        <button onclick="editVehicleType('{{ vehicle_type.id }}', '{{ vehicle_type.name }}', '{{ vehicle_type.max_occupants }}', '{{ vehicle_type.max_cargo_weight }}', '{{ vehicle_type.base_fare }}')"
+                class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button hx-delete="{% url 'delete_vehicle_type' vehicle_type.id %}"
+                hx-target="#vehicle-type-{{ vehicle_type.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="Are you sure you want to delete this vehicle type?"
+                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50 transition-colors">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+</div>
+{% empty %}
+<div class="text-center py-8 bg-white border rounded-lg">
+    <div class="text-gray-400 mb-3">
+        <i class="fas fa-truck text-5xl"></i>
+    </div>
+    <p class="text-gray-500">No vehicle types have been added yet.</p>
+    <p class="text-sm text-gray-400 mt-1">Use the form above to add your first vehicle type.</p>
+</div>
+{% endfor %}

@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<!-- Hero section with ferry background pattern -->
+<div class="bg-gradient-to-b from-blue-800 to-blue-600 py-20 relative overflow-hidden">
+    <!-- Dark overlay -->
+    <div class="absolute inset-0 bg-black opacity-30"></div>
+    
+    <!-- Animated wave background -->
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 left-0 w-full h-full bg-repeat" 
+             style="background-image: url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M30 0C13.4315 0 0 13.4315 0 30C0 46.5685 13.4315 60 30 60C46.5685 60 60 46.5685 60 30C60 13.4315 46.5685 0 30 0ZM30 10C41.0457 10 50 18.9543 50 30C50 41.0457 41.0457 50 30 50C18.9543 50 10 41.0457 10 30C10 18.9543 18.9543 10 30 10Z\' fill=\'%23ffffff\'/%3E%3C/svg%3E');">
+        </div>
+    </div>
+    
+    <div class="container mx-auto px-4 relative z-10">
+        <div class="max-w-4xl mx-auto bg-blue-900/30 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
+            <h1 class="text-5xl font-extrabold text-white text-center mb-4 drop-shadow-lg">
+                Create Your Account
+            </h1>
+            <p class="text-xl text-white text-center max-w-2xl mx-auto font-medium drop-shadow-md tracking-wide">
+                Join our maritime community and start booking your journeys today.
+            </p>
+            <div class="flex justify-center mt-6">
+                <div class="w-24 h-1 bg-blue-400 rounded-full shadow-lg"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wave pattern (keep existing wave code) -->
+    <div class="absolute bottom-0 left-0 right-0 h-40">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="absolute bottom-0">
+            <path fill="#fff" fill-opacity="1" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 -mt-8 relative z-20">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white shadow-2xl rounded-xl p-8 relative overflow-hidden">
+            <!-- Subtle ferry icon background -->
+            <div class="absolute right-0 bottom-0 text-blue-50 opacity-5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-64 h-64">
+                    <path d="M2.25 4.5C2.25 3.12 3.12 2.25 4.5 2.25H7.5C8.88 2.25 9.75 3.12 9.75 4.5V6H11.25V4.5C11.25 3.12 12.12 2.25 13.5 2.25H16.5C17.88 2.25 18.75 3.12 18.75 4.5V6H20.25V4.5C20.25 3.12 21.12 2.25 22.5 2.25C23.88 2.25 24.75 3.12 24.75 4.5V15C24.75 16.38 23.88 17.25 22.5 17.25H21.75V19.5C21.75 20.88 20.88 21.75 19.5 21.75H4.5C3.12 21.75 2.25 20.88 2.25 19.5V4.5Z"/>
+                </svg>
+            </div>
+            
+            <form method="POST" class="space-y-6 relative z-10">
+                {% csrf_token %}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Username Field -->
+                    <div class="group">
+                        <label for="username" class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text" name="username" id="username" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                    
+                    <!-- Email Field -->
+                    <div class="group">
+                        <label for="email" class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-envelope"></i>
+                            </span>
+                            <input type="email" name="email" id="email" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                    
+                    <!-- First Name Field -->
+                    <div class="group">
+                        <label for="first_name" class="block text-sm font-semibold text-gray-700 mb-1">First Name</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-user-circle"></i>
+                            </span>
+                            <input type="text" name="first_name" id="first_name" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                    
+                    <!-- Last Name Field -->
+                    <div class="group">
+                        <label for="last_name" class="block text-sm font-semibold text-gray-700 mb-1">Last Name</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-user-circle"></i>
+                            </span>
+                            <input type="text" name="last_name" id="last_name" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                    
+                    <!-- Password Field -->
+                    <div class="group">
+                        <label for="password1" class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" name="password1" id="password1" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                    
+                    <!-- Confirm Password Field -->
+                    <div class="group">
+                        <label for="password2" class="block text-sm font-semibold text-gray-700 mb-1">Confirm Password</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" name="password2" id="password2" required
+                                class="pl-10 w-full rounded-lg border border-gray-300 bg-gray-50 py-3 px-4 text-gray-800 transition-colors hover:bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="mt-8">
+                    <button type="submit"
+                        class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transform transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg hover:shadow-xl">
+                        Create Account
+                    </button>
+                </div>
+                
+                <!-- Login Link -->
+                <div class="text-center mt-6">
+                    <p class="text-gray-600">
+                        Already have an account?
+                        <a href="{% url 'login' %}" class="text-blue-600 hover:text-blue-700 font-semibold ml-1 transition-colors">
+                            Sign in to your account
+                        </a>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

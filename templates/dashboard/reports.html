@@ -1,0 +1,219 @@
+{% extends 'dashboard/base.html' %}
+{% load custom_filters %}
+{% load humanize %}
+
+{% block title %}Reports{% endblock %}
+{% block header %}Analytics & Reports{% endblock %}
+
+{% block content %}
+<!-- Filters Section -->
+<div class="bg-white rounded-lg shadow mb-6">
+    <div class="p-6">
+        <form method="get" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                    <select name="month" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% for m in ""|get_months %}
+                            <option value="{{ m.0 }}" {% if month == m.0 %}selected{% endif %}>
+                                {{ m.1 }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                    <select name="year" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% now "Y" as current_year %}
+                        {% with start_year=current_year|add:"-5" end_year=current_year|add:"1" %}
+                            {% for y in start_year|rangelist:end_year %}
+                                <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        {% endwith %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+                    <select name="route" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Routes</option>
+                        {% for route in routes %}
+                            <option value="{{ route.id }}" {% if selected_route == route.id|stringformat:"i" %}selected{% endif %}>
+                                {{ route.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Vessel</label>
+                    <select name="vessel" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Vessels</option>
+                        {% for vessel in vessels %}
+                            <option value="{{ vessel.id }}" {% if selected_vessel == vessel.id|stringformat:"i" %}selected{% endif %}>
+                                {{ vessel.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- Monthly Bookings Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Monthly Bookings</h3>
+            <i class="fas fa-ticket-alt text-blue-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">{{ monthly_bookings_count|default:"0" }}</span>
+            <span class="{% if booking_growth >= 0 %}text-green-500{% else %}text-red-500{% endif %} text-sm">
+                <i class="fas fa-arrow-{% if booking_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ booking_growth|default:"0"|floatformat:1|cut:'-' }}%
+            </span>
+        </div>
+    </div>
+
+    <!-- Revenue Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Monthly Revenue</h3>
+            <i class="fas fa-peso-sign text-green-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">₱{{ monthly_revenue|default:"0"|floatformat:2|intcomma }}</span>
+            <span class="{% if revenue_growth >= 0 %}text-green-500{% else %}text-red-500{% endif %} text-sm">
+                <i class="fas fa-arrow-{% if revenue_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ revenue_growth|default:"0"|floatformat:1|cut:'-' }}%
+            </span>
+        </div>
+    </div>
+
+    <!-- Average Booking Value -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Avg. Booking Value</h3>
+            <i class="fas fa-chart-line text-purple-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">₱{{ avg_booking_value|default:"0"|floatformat:2|intcomma }}</span>
+            <span class="text-purple-500 text-sm">Per Booking</span>
+        </div>
+    </div>
+
+    <!-- Occupancy Rate -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Occupancy Rate</h3>
+            <i class="fas fa-users text-orange-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">{{ occupancy_rate|default:"0"|floatformat:1 }}%</span>
+            <span class="{% if occupancy_growth >= 0 %}text-green-500{% else %}text-red-500{% endif %} text-sm">
+                <i class="fas fa-arrow-{% if occupancy_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ occupancy_growth|default:"0"|floatformat:1|cut:'-' }}%
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Route Performance -->
+<div class="bg-white rounded-lg shadow mb-6">
+    <div class="p-6 border-b">
+        <h2 class="text-lg font-semibold">Route Performance</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Route</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Bookings</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for route in route_performance %}
+                <tr>
+                    <td class="px-6 py-4">{{ route.route.name }}</td>
+                    <td class="px-6 py-4">{{ route.total_bookings }}</td>
+                    <td class="px-6 py-4">₱{{ route.revenue|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="px-6 py-4 text-center text-gray-500">No data available for the selected period</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Export Section -->
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4">Export Reports</h2>
+    <div class="flex flex-wrap gap-4">
+        <a href="{% url 'export_report' %}?format=excel&{{ request.GET.urlencode }}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <i class="fas fa-file-excel mr-2 text-green-600"></i>
+            Export to Excel
+        </a>
+        <a href="{% url 'export_report' %}?format=pdf&{{ request.GET.urlencode }}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <i class="fas fa-file-pdf mr-2 text-red-600"></i>
+            Export to PDF
+        </a>
+        <a href="{% url 'export_report' %}?format=csv&{{ request.GET.urlencode }}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+            <i class="fas fa-file-csv mr-2 text-blue-600"></i>
+            Export to CSV
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Revenue Trends Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ revenue_labels|safe|default:"[]" }},
+            datasets: [{
+                label: 'Revenue',
+                data: {{ revenue_data|safe|default:"[]" }},
+                borderColor: '#2563eb',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

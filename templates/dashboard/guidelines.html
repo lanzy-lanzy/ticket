@@ -1,0 +1,45 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Guidelines{% endblock %}
+{% block header %}Travel Guidelines{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow">
+    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Travel Guidelines</h2>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <i class="fas fa-plus mr-2"></i> Add Guideline
+        </button>
+    </div>
+    <div class="p-6">
+        <div class="space-y-6">
+            {% for guideline in guidelines %}
+            <div class="border rounded-lg p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-1">{{ guideline.title }}</h3>
+                        <p class="text-sm text-gray-500">
+                            Effective from: {{ guideline.effective_date|date:"M d, Y" }}
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="prose max-w-none">
+                    {{ guideline.content|linebreaks }}
+                </div>
+                <div class="mt-4 text-sm text-gray-500">
+                    Last updated: {{ guideline.created_at|date:"M d, Y H:i" }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

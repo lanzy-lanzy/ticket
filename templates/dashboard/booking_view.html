@@ -1,0 +1,141 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Booking Details{% endblock %}
+{% block header %}Booking Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <!-- Booking Header -->
+        <div class="border-b pb-4 mb-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-gray-800">
+                    {% if booking.booking_type == 'vehicle' %}
+                        Vehicle Booking #{{ booking.booking_reference }}
+                    {% else %}
+                        Booking #{{ booking.booking_reference }}
+                    {% endif %}
+                </h2>
+                <div class="flex space-x-2">
+                    {% if not booking.is_paid %}
+                    <a href="{% url 'payments' %}" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                        Process Payment
+                    </a>
+                    {% endif %}                
+                </div>
+            </div>
+            <p class="text-gray-600 mt-2">Created on {{ booking.created_at|date:"F d, Y H:i" }}</p>
+        </div>
+
+        <!-- Booking Details -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Customer Information -->
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-800">Customer Information</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Full Name:</dt>
+                            <dd class="font-medium">{{ booking.full_name }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Contact Number:</dt>
+                            <dd class="font-medium">{{ booking.contact_number }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Email:</dt>
+                            <dd class="font-medium">{{ booking.email }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Trip Details -->
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-800">Trip Details</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Schedule:</dt>
+                            <dd class="font-medium">{{ booking.schedule }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Departure:</dt>
+                            <dd class="font-medium">{{ booking.schedule.departure_datetime|date:"F d, Y H:i" }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Booking Type:</dt>
+                            <dd class="font-medium">{{ booking.get_booking_type_display }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Vehicle Details -->
+            {% if booking.booking_type == 'vehicle' %}
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-800">Vehicle Details</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Vehicle Type:</dt>
+                            <dd class="font-medium">{{ booking.vehicle_type.name }}</dd>
+                        </div>
+                        {% if booking.plate_number %}
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Plate Number:</dt>
+                            <dd class="font-medium">{{ booking.plate_number }}</dd>
+                        </div>
+                        {% endif %}
+                        {% if booking.cargo_weight %}
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Cargo Weight:</dt>
+                            <dd class="font-medium">{{ booking.cargo_weight }} kg</dd>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Base Fare:</dt>
+                            <dd class="font-medium">₱{{ booking.vehicle_type.base_fare|floatformat:2 }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Payment Information -->
+            <div class="space-y-4">
+                <h3 class="text-lg font-semibold text-gray-800">Payment Information</h3>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Total Fare:</dt>
+                            <dd class="font-medium">₱{{ total_fare|floatformat:2 }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Payment Status:</dt>
+                            <dd class="font-medium">
+                                {% if booking.is_paid %}
+                                <span class="text-green-600">Paid</span>
+                                {% else %}
+                                <span class="text-red-600">Pending</span>
+                                {% endif %}
+                            </dd>
+                        </div>
+                        {% if payment %}
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Payment Date:</dt>
+                            <dd class="font-medium">{{ payment.created_at|date:"F d, Y H:i" }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-gray-600">Payment Method:</dt>
+                            <dd class="font-medium">{{ payment.get_payment_method_display }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

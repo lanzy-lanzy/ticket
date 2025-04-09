@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - Maritime Booking System{% endblock %}
+
+{% block content %}
+<!-- Hero section with ferry background pattern -->
+<div class="bg-gradient-to-b from-blue-800 to-blue-600 py-20 relative overflow-hidden">
+    <!-- Ferry pattern overlay -->
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('{% static 'images/ferry-pattern.svg' %}'); background-size: 180px; background-repeat: repeat;"></div>
+    </div>
+    
+    <!-- Alternative if SVG not available -->
+    <style>
+        .ferry-pattern {
+            position: absolute;
+            inset: 0;
+            opacity: 0.1;
+            background-image: radial-gradient(circle, white 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        .wave-pattern {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+        }
+    </style>
+    <div class="ferry-pattern"></div>
+    
+    <div class="container mx-auto px-4 text-center text-white relative z-10">
+        <h1 class="text-4xl font-bold mb-4">Welcome Back</h1>
+        <p class="text-xl max-w-2xl mx-auto">Log in to your account to book trips, manage your bookings, and more.</p>
+    </div>
+</div>
+
+<!-- Login Form Section -->
+<div class="container mx-auto px-4 py-12">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="p-6 bg-blue-50 border-b">
+            <h2 class="text-2xl font-bold text-center text-blue-800">Account Login</h2>
+        </div>
+        
+        <!-- Display messages -->
+        {% if messages %}
+        <div class="p-4">
+            {% for message in messages %}
+            <div class="{% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %} p-3 rounded mb-3">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="p-6">
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="id_username" class="block text-gray-700 font-medium mb-2">Username</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </div>
+                        <input type="text" name="username" id="id_username" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your username" required>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="id_password" class="block text-gray-700 font-medium mb-2">Password</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-gray-400"></i>
+                        </div>
+                        <input type="password" name="password" id="id_password" class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your password" required>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="remember" name="remember" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
+                    </div>
+                    <a href="#" class="text-sm text-blue-600 hover:text-blue-800">Forgot password?</a>
+                </div>
+                
+                <div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                        <i class="fas fa-sign-in-alt mr-2"></i> Log In
+                    </button>
+                </div>
+                
+                <!-- Information about redirection -->
+                <div class="mt-4 text-sm text-gray-600 text-center">
+                    <p>Staff members will be redirected to the admin dashboard.</p>
+                    <p>Regular users will be redirected to the booking page.</p>
+                </div>
+            </form>
+        </div>
+        
+        <div class="p-6 bg-gray-50 border-t">
+            <p class="text-center text-gray-700">Don't have an account? <a href="{% url 'register' %}" class="text-blue-600 hover:text-blue-800 font-medium">Register here</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

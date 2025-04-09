@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - {% block title %}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.0"></script>
+    
+
+</head>
+<body class="bg-gray-100">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="bg-blue-800 text-white w-64 min-h-screen px-4 py-6">
+            <div class="flex items-center mb-8 px-2">
+                <i class="fas fa-ship text-2xl"></i>
+                <span class="ml-3 text-xl font-bold">Maritime Admin</span>
+            </div>
+            
+            <nav class="space-y-2">
+                <a href="{% url 'dashboard' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-tachometer-alt w-6"></i>
+                    <span>Dashboard</span>
+                </a>
+                
+                <a href="{% url 'vessels' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'vessels' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-ship w-6"></i>
+                    <span>Vessels</span>
+                </a>
+                
+                <a href="#" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg"
+                   onclick="openVehicleTypesModal()">
+                    <i class="fas fa-truck w-6"></i>
+                    <span>Vehicle Types</span>
+                </a>
+                
+                <a href="{% url 'dashboard_schedules' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'dashboard_schedules' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-calendar w-6"></i>
+                    <span>Schedules</span>
+                </a>
+                
+                <a href="{% url 'route_list' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'route_list' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-route w-6"></i>
+                    <span>Routes</span>
+                </a>
+                
+                <a href="{% url 'booking_list' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'booking_list' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-ticket-alt w-6"></i>
+                    <span>Bookings</span>
+                </a>
+                
+                <a href="{% url 'payments' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'payments' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-money-bill w-6"></i>
+                    <span>Payments</span>
+                </a>
+                
+                <a href="{% url 'reports' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'reports' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-chart-bar w-6"></i>
+                    <span>Reports</span>
+                </a>
+                
+                <a href="{% url 'ratings_dashboard' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'ratings' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-star w-6"></i>
+                    <span>Ratings</span>
+                </a>
+                
+                <a href="{% url 'guidelines' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg {% if request.resolver_match.url_name == 'guidelines' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-book w-6"></i>
+                    <span>Guidelines</span>
+                </a>
+                <div class="pt-6 mt-6 border-t border-blue-700">
+                    <a href="{% url 'logout' %}" class="flex items-center px-4 py-3 hover:bg-blue-700 rounded-lg text-red-300 hover:text-white">
+                        <i class="fas fa-sign-out-alt w-6"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm">
+                <div class="flex items-center justify-between px-6 py-4">
+                    <h1 class="text-2xl font-bold text-gray-800">{% block header %}{% endblock %}</h1>
+                    <div class="flex items-center space-x-4">
+                        <!-- Notification Button with Counter -->
+                        <div class="relative">
+                            <button 
+                                class="text-gray-500 hover:text-gray-700"
+                                hx-get="{% url 'get_notifications' %}"
+                                hx-target="#notifications-dropdown"
+                                hx-trigger="click"
+                                onclick="toggleNotifications()">
+                                <i class="fas fa-bell text-xl"></i>
+                                {% if pending_payments_count > 0 %}
+                                <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {{ pending_payments_count }}
+                                </span>
+                                {% endif %}
+                            </button>
+                            <!-- Notifications Dropdown -->
+                            <div id="notifications-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg z-50">
+                                <!-- Notifications will be loaded here -->
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-gray-700">{{ user.username }}</span>
+                            <img src="https://ui-avatars.com/api/?name={{ user.username }}" alt="{{ user.username }}" class="w-8 h-8 rounded-full">
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Messages display -->
+            {% if messages %}
+            <div class="p-6 pb-0">
+                {% for message in messages %}
+                    <div class="p-4 mb-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Page Content -->
+            <main class="p-6">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    <!-- Vehicle Types Modal -->
+    <div id="vehicle-types-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-3/4 shadow-lg rounded-md bg-white">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold">Manage Vehicle Types</h3>
+                <button onclick="closeVehicleTypesModal()" class="text-gray-600 hover:text-gray-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Add Vehicle Type Form -->
+            <form hx-post="{% url 'add_vehicle_type' %}" 
+                  hx-target="#vehicle-types-list"
+                  hx-swap="innerHTML"
+                  class="mb-6 p-4 border rounded-lg bg-gray-50">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" name="name" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Occupants</label>
+                        <input type="number" name="max_occupants" required min="1"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Max Cargo (tons)</label>
+                        <input type="number" name="max_cargo_weight" required min="0" step="0.1"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Base Fare (₱)</label>
+                        <input type="number" name="base_fare" required min="0" step="0.01"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button type="submit"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Vehicle Type
+                    </button>
+                </div>
+            </form>
+
+            <!-- Vehicle Types List Container -->
+            <div id="vehicle-types-list" 
+                 hx-get="{% url 'get_vehicle_types' %}" 
+                 hx-trigger="load"
+                 class="space-y-4">
+                <!-- List will be loaded here -->
+            </div>
+        </div>
+    </div>
+    <!-- Edit Form Template (Initially Hidden) -->
+    <template id="edit-form-template">
+        <form hx-put="/vehicle-types/{id}/update/"
+              hx-target="#vehicle-type-{id}"
+              hx-swap="outerHTML"
+              hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-white border rounded-lg">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" name="name" required id="edit-name-{id}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Max Occupants</label>
+                    <input type="number" name="max_occupants" required min="1" id="edit-occupants-{id}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Max Cargo (tons)</label>
+                    <input type="number" name="max_cargo_weight" required min="0" step="0.1" id="edit-cargo-{id}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Base Fare (₱)</label>
+                    <input type="number" name="base_fare" required min="0" step="0.01" id="edit-fare-{id}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-4">
+                <button type="button" onclick="cancelEdit('{id}')"
+                        class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </template>
+    <script>
+    function openVehicleTypesModal() {
+        const modal = document.getElementById('vehicle-types-modal');
+        modal.classList.remove('hidden');
+        // Trigger HTMX to load the vehicle types
+        htmx.trigger('#vehicle-types-list', 'load');
+    }
+
+    function closeVehicleTypesModal() {
+        document.getElementById('vehicle-types-modal').classList.add('hidden');
+    }
+
+    function editVehicleType(id, name, maxOccupants, maxCargo, baseFare) {
+        const vehicleTypeEl = document.getElementById(`vehicle-type-${id}`);
+        
+        // Get the template and create a new element from it
+        const template = document.getElementById('edit-form-template');
+        let editForm = template.innerHTML.replace(/{id}/g, id);
+        
+        // Set the form content
+        vehicleTypeEl.innerHTML = editForm;
+
+        // Set the values after the form is in the DOM
+        setTimeout(() => {
+            document.getElementById(`edit-name-${id}`).value = name;
+            document.getElementById(`edit-occupants-${id}`).value = maxOccupants;
+            document.getElementById(`edit-cargo-${id}`).value = maxCargo;
+            document.getElementById(`edit-fare-${id}`).value = baseFare;
+        }, 0);
+    }
+
+    function cancelEdit(id) {
+        htmx.ajax('GET', `/vehicle-types/${id}/`, {
+            target: `#vehicle-type-${id}`,
+            swap: 'outerHTML'
+        });
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('vehicle-types-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeVehicleTypesModal();
+        }
+    });
+
+    function toggleNotifications() {
+        const dropdown = document.getElementById('notifications-dropdown');
+        dropdown.classList.toggle('hidden');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('notifications-dropdown');
+        const button = event.target.closest('button');
+        if (!button && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+    </script>
+</body>
+</html>

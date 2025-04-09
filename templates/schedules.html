@@ -1,0 +1,525 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Schedules - Maritime Booking{% endblock %}
+
+{% block content %}
+{% include 'includes/hero_section.html' with title="Ferry Schedules" subtitle="Find and book your perfect journey with our comprehensive schedule listing." %}
+
+<div class="container mx-auto px-4 py-12">
+    <!-- Search and Filter Section -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8 relative overflow-hidden">
+        <!-- Subtle ferry icon background -->
+        <div class="absolute right-0 bottom-0 text-blue-50 opacity-10">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-32 h-32">
+                <path d="M2.25 4.5C2.25 3.12 3.12 2.25 4.5 2.25H7.5C8.88 2.25 9.75 3.12 9.75 4.5V6H11.25V4.5C11.25 3.12 12.12 2.25 13.5 2.25H16.5C17.88 2.25 18.75 3.12 18.75 4.5V6H20.25V4.5C20.25 3.12 21.12 2.25 22.5 2.25C23.88 2.25 24.75 3.12 24.75 4.5V15C24.75 16.38 23.88 17.25 22.5 17.25H21.75V19.5C21.75 20.88 20.88 21.75 19.5 21.75H4.5C3.12 21.75 2.25 20.88 2.25 19.5V4.5ZM13.5 6.75H16.5V4.5H13.5V6.75ZM4.5 6.75H7.5V4.5H4.5V6.75ZM4.5 19.5H19.5V9H4.5V19.5Z"/>
+            </svg>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Vessel Type</label>
+                <select id="vessel-type-filter" class="w-full border rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Types</option>
+                    <option value="passenger">Passenger Ferry</option>
+                    <option value="cargo">Cargo Ferry</option>
+                    <option value="mixed">Mixed Use</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+                <select id="route-filter" class="w-full border rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Routes</option>
+                    <!-- Add route options dynamically if needed -->
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button id="search-button" class="w-full bg-blue-600 text-white rounded-lg px-6 py-2 hover:bg-blue-700 transition duration-300">
+                    Search Schedules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar and Schedule Display -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Calendar Section -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden">
+                <!-- Subtle nautical background -->
+                <div class="absolute inset-0 opacity-5">
+                    <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 40 40\'%3E%3Cg fill=\'%231e40af\' fill-opacity=\'1\'%3E%3Cpath d=\'M20 0C9 0 0 9 0 20s9 20 20 20 20-9 20-20S31 0 20 0zm0 37c-9.4 0-17-7.6-17-17S10.6 3 20 3s17 7.6 17 17-7.6 17-17 17zm0-30c-7.2 0-13 5.8-13 13s5.8 13 13 13 13-5.8 13-13-5.8-13-13-13zm0 24c-6.1 0-11-4.9-11-11s4.9-11 11-11 11 4.9 11 11-4.9 11-11 11z\'/%3E%3C/g%3E%3C/svg%3E'); background-repeat: repeat;"></div>
+                </div>
+                
+                <div class="relative z-10">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Select Date</h2>
+                    <div id="schedule-calendar" class="mb-4"></div>
+                    <div class="flex items-center justify-between text-sm text-gray-600">
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-blue-500 rounded-full mr-2"></span>
+                            <span>Available</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-gray-300 rounded-full mr-2"></span>
+                            <span>No Schedules</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-yellow-400 rounded-full mr-2"></span>
+                            <span>Limited Seats</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule List Section -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden">
+                <!-- Subtle wave pattern background -->
+                <div class="absolute inset-0 opacity-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="absolute bottom-0">
+                        <path fill="#1e40af" fill-opacity="1" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                    </svg>
+                </div>
+                
+                <div class="relative z-10">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Available Schedules</h2>
+                    <div id="selected-date" class="text-lg font-medium text-blue-600 mb-4">
+                        <!-- Selected date will be displayed here -->
+                    </div>
+                    
+                    <div id="schedules-container">
+                        <!-- Schedules for selected date will be displayed here -->
+                        {% for schedule in schedules %}
+                        <div class="schedule-item mb-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition duration-300" 
+                             data-date="{{ schedule.departure_datetime|date:'Y-m-d' }}"
+                             data-vessel-type="{{ schedule.vessel.vessel_type }}"
+                             data-route="{{ schedule.route }}">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-semibold text-blue-800">{{ schedule.vessel.name }}</h3>
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                    {{ schedule.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">Departure</p>
+                                    <p class="font-semibold">{{ schedule.departure_datetime|date:"g:i A" }}</p>
+                                    <p class="text-sm text-gray-600">{{ schedule.departure_datetime|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-ship text-blue-500 mx-2"></i>
+                                    <i class="fas fa-long-arrow-alt-right text-blue-500 mx-2"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Arrival</p>
+                                    <p class="font-semibold">{{ schedule.arrival_datetime|date:"g:i A" }}</p>
+                                    <p class="text-sm text-gray-600">{{ schedule.arrival_datetime|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600 mt-4">
+                                <div>
+                                    <i class="fas fa-users mr-2"></i>
+                                    {{ schedule.available_seats }} seats available
+                                </div>
+                                <div>
+                                    <i class="fas fa-box mr-2"></i>
+                                    {{ schedule.available_cargo_space }} tons space
+                                </div>
+                                <a href="{% url 'booking' %}?schedule={{ schedule.id }}" 
+                                   class="bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition duration-300">
+                                    Book Now
+                                </a>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div id="no-schedules" class="text-center py-8">
+                            <p class="text-gray-500">No schedules available for the selected criteria.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Flatpickr for the calendar -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all schedule dates for calendar highlighting
+        const scheduleDates = [];
+        const limitedSeatsDates = [];
+        
+        document.querySelectorAll('.schedule-item').forEach(item => {
+            const date = item.dataset.date;
+            const availableSeats = parseInt(item.querySelector('.fas.fa-users').nextSibling.textContent.trim().split(' ')[0]);
+            
+            if (!scheduleDates.includes(date)) {
+                scheduleDates.push(date);
+            }
+            
+            // If seats are less than 10, mark as limited availability
+            if (availableSeats < 10 && !limitedSeatsDates.includes(date)) {
+                limitedSeatsDates.push(date);
+            }
+        });
+        
+        // Initialize calendar
+        const calendar = flatpickr("#schedule-calendar", {
+            inline: true,
+            minDate: "today",
+            dateFormat: "Y-m-d",
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+                
+                if (limitedSeatsDates.includes(dateStr)) {
+                    dayElem.className += " limited-seats-date";
+                } else if (scheduleDates.includes(dateStr)) {
+                    dayElem.className += " has-schedules-date";
+                }
+            },
+            onChange: function(selectedDates, dateStr) {
+                // Update selected date display
+                document.getElementById('selected-date').textContent = 'Schedules for ' + new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                
+                // Filter schedules by selected date
+                filterSchedules();
+            }
+        });
+        
+        // Add custom styling for calendar dates
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .has-schedules-date:not(.flatpickr-disabled) { 
+                background-color: #3b82f6 !important; 
+                color: white !important;
+                border-color: #3b82f6 !important;
+            }
+            .limited-seats-date:not(.flatpickr-disabled) { 
+                background-color: #facc15 !important; 
+                color: black !important;
+                border-color: #facc15 !important;
+            }
+            .flatpickr-calendar {
+                box-shadow: none !important;
+                border-radius: 0.5rem;
+            }
+            .flatpickr-day.selected {
+                background: #1e40af !important;
+                border-color: #1e40af !important;
+            }
+            .flatpickr-day:hover {
+                background: #dbeafe !important;
+                border-color: #bfdbfe !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Filter function
+        function filterSchedules() {
+            const selectedDate = calendar.selectedDates[0] ? calendar.selectedDates[0].toISOString().split('T')[0] : null;
+            const vesselType = document.getElementById('vessel-type-filter').value;
+            const route = document.getElementById('route-filter').value;
+            
+            let hasVisibleSchedules = false;
+            
+            document.querySelectorAll('.schedule-item').forEach(item => {
+                const matchesDate = !selectedDate || item.dataset.date === selectedDate;
+                const matchesVesselType = !vesselType || item.dataset.vesselType === vesselType;
+                const matchesRoute = !route || item.dataset.route === route;
+                
+                const shouldShow = matchesDate && matchesVesselType && matchesRoute;
+                item.style.display = shouldShow ? 'block' : 'none';
+                
+                if (shouldShow) {
+                    hasVisibleSchedules = true;
+<!-- Hero section with ferry background pattern -->
+<div class="bg-gradient-to-b from-blue-800 to-blue-600 py-20 relative overflow-hidden">
+    <!-- Ferry pattern overlay -->
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('{% static 'images/ferry-pattern.svg' %}'); background-size: 180px; background-repeat: repeat;"></div>
+    </div>
+    
+    <!-- Alternative if SVG not available -->
+    <style>
+        .ferry-pattern {
+            position: absolute;
+            inset: 0;
+            opacity: 0.1;
+            background-image: radial-gradient(circle, white 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        .wave-pattern {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z' opacity='.25' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z' opacity='.5' fill='%23FFFFFF'%3E%3C/path%3E%3Cpath d='M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z' fill='%23FFFFFF'%3E%3C/path%3E%3C/svg%3E") no-repeat;
+            background-size: cover;
+        }
+    </style>
+    
+    <div class="ferry-pattern"></div>
+    <div class="wave-pattern"></div>
+    
+    <div class="container mx-auto px-4 relative z-10">
+        <h1 class="text-4xl font-bold text-white text-center mb-4">Ferry Schedules</h1>
+        <p class="text-blue-100 text-center max-w-2xl mx-auto">Find and book your perfect journey with our comprehensive schedule listing.</p>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 py-12">
+    <!-- Search and Filter Section -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8 relative overflow-hidden">
+        <!-- Subtle ferry icon background -->
+        <div class="absolute right-0 bottom-0 text-blue-50 opacity-10">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-32 h-32">
+                <path d="M2.25 4.5C2.25 3.12 3.12 2.25 4.5 2.25H7.5C8.88 2.25 9.75 3.12 9.75 4.5V6H11.25V4.5C11.25 3.12 12.12 2.25 13.5 2.25H16.5C17.88 2.25 18.75 3.12 18.75 4.5V6H20.25V4.5C20.25 3.12 21.12 2.25 22.5 2.25C23.88 2.25 24.75 3.12 24.75 4.5V15C24.75 16.38 23.88 17.25 22.5 17.25H21.75V19.5C21.75 20.88 20.88 21.75 19.5 21.75H4.5C3.12 21.75 2.25 20.88 2.25 19.5V4.5ZM13.5 6.75H16.5V4.5H13.5V6.75ZM4.5 6.75H7.5V4.5H4.5V6.75ZM4.5 19.5H19.5V9H4.5V19.5Z"/>
+            </svg>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Vessel Type</label>
+                <select id="vessel-type-filter" class="w-full border rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Types</option>
+                    <option value="passenger">Passenger Ferry</option>
+                    <option value="cargo">Cargo Ferry</option>
+                    <option value="mixed">Mixed Use</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+                <select id="route-filter" class="w-full border rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Routes</option>
+                    <!-- Add route options dynamically if needed -->
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button id="search-button" class="w-full bg-blue-600 text-white rounded-lg px-6 py-2 hover:bg-blue-700 transition duration-300">
+                    Search Schedules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar and Schedule Display -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Calendar Section -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden">
+                <!-- Subtle nautical background -->
+                <div class="absolute inset-0 opacity-5">
+                    <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\' viewBox=\'0 0 40 40\'%3E%3Cg fill=\'%231e40af\' fill-opacity=\'1\'%3E%3Cpath d=\'M20 0C9 0 0 9 0 20s9 20 20 20 20-9 20-20S31 0 20 0zm0 37c-9.4 0-17-7.6-17-17S10.6 3 20 3s17 7.6 17 17-7.6 17-17 17zm0-30c-7.2 0-13 5.8-13 13s5.8 13 13 13 13-5.8 13-13-5.8-13-13-13zm0 24c-6.1 0-11-4.9-11-11s4.9-11 11-11 11 4.9 11 11-4.9 11-11 11z\'/%3E%3C/g%3E%3C/svg%3E'); background-repeat: repeat;"></div>
+                </div>
+                
+                <div class="relative z-10">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Select Date</h2>
+                    <div id="schedule-calendar" class="mb-4"></div>
+                    <div class="flex items-center justify-between text-sm text-gray-600">
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-blue-500 rounded-full mr-2"></span>
+                            <span>Available</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-gray-300 rounded-full mr-2"></span>
+                            <span>No Schedules</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="inline-block w-4 h-4 bg-yellow-400 rounded-full mr-2"></span>
+                            <span>Limited Seats</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule List Section -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden">
+                <!-- Subtle wave pattern background -->
+                <div class="absolute inset-0 opacity-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="absolute bottom-0">
+                        <path fill="#1e40af" fill-opacity="1" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                    </svg>
+                </div>
+                
+                <div class="relative z-10">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Available Schedules</h2>
+                    <div id="selected-date" class="text-lg font-medium text-blue-600 mb-4">
+                        <!-- Selected date will be displayed here -->
+                    </div>
+                    
+                    <div id="schedules-container">
+                        <!-- Schedules for selected date will be displayed here -->
+                        {% for schedule in schedules %}
+                        <div class="schedule-item mb-4 p-4 border border-gray-200 rounded-lg hover:shadow-md transition duration-300" 
+                             data-date="{{ schedule.departure_datetime|date:'Y-m-d' }}"
+                             data-vessel-type="{{ schedule.vessel.vessel_type }}"
+                             data-route="{{ schedule.route }}">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-semibold text-blue-800">{{ schedule.vessel.name }}</h3>
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                    {{ schedule.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">Departure</p>
+                                    <p class="font-semibold">{{ schedule.departure_datetime|date:"g:i A" }}</p>
+                                    <p class="text-sm text-gray-600">{{ schedule.departure_datetime|date:"M d, Y" }}</p>
+                                </div>
+                                <div class="flex items-center justify-center">
+                                    <i class="fas fa-ship text-blue-500 mx-2"></i>
+                                    <i class="fas fa-long-arrow-alt-right text-blue-500 mx-2"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Arrival</p>
+                                    <p class="font-semibold">{{ schedule.arrival_datetime|date:"g:i A" }}</p>
+                                    <p class="text-sm text-gray-600">{{ schedule.arrival_datetime|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-sm text-gray-600 mt-4">
+                                <div>
+                                    <i class="fas fa-users mr-2"></i>
+                                    {{ schedule.available_seats }} seats available
+                                </div>
+                                <div>
+                                    <i class="fas fa-box mr-2"></i>
+                                    {{ schedule.available_cargo_space }} tons space
+                                </div>
+                                <a href="{% url 'booking' %}?schedule={{ schedule.id }}" 
+                                   class="bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition duration-300">
+                                    Book Now
+                                </a>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div id="no-schedules" class="text-center py-8">
+                            <p class="text-gray-500">No schedules available for the selected criteria.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Flatpickr for the calendar -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all schedule dates for calendar highlighting
+        const scheduleDates = [];
+        const limitedSeatsDates = [];
+        
+        document.querySelectorAll('.schedule-item').forEach(item => {
+            const date = item.dataset.date;
+            const availableSeats = parseInt(item.querySelector('.fas.fa-users').nextSibling.textContent.trim().split(' ')[0]);
+            
+            if (!scheduleDates.includes(date)) {
+                scheduleDates.push(date);
+            }
+            
+            // If seats are less than 10, mark as limited availability
+            if (availableSeats < 10 && !limitedSeatsDates.includes(date)) {
+                limitedSeatsDates.push(date);
+            }
+        });
+        
+        // Initialize calendar
+        const calendar = flatpickr("#schedule-calendar", {
+            inline: true,
+            minDate: "today",
+            dateFormat: "Y-m-d",
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                const dateStr = dayElem.dateObj.toISOString().split('T')[0];
+                
+                if (limitedSeatsDates.includes(dateStr)) {
+                    dayElem.className += " limited-seats-date";
+                } else if (scheduleDates.includes(dateStr)) {
+                    dayElem.className += " has-schedules-date";
+                }
+            },
+            onChange: function(selectedDates, dateStr) {
+                // Update selected date display
+                document.getElementById('selected-date').textContent = 'Schedules for ' + new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                
+                // Filter schedules by selected date
+                filterSchedules();
+            }
+        });
+        
+        // Add custom styling for calendar dates
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .has-schedules-date:not(.flatpickr-disabled) { 
+                background-color: #3b82f6 !important; 
+                color: white !important;
+                border-color: #3b82f6 !important;
+            }
+            .limited-seats-date:not(.flatpickr-disabled) { 
+                background-color: #facc15 !important; 
+                color: black !important;
+                border-color: #facc15 !important;
+            }
+            .flatpickr-calendar {
+                box-shadow: none !important;
+                border-radius: 0.5rem;
+            }
+            .flatpickr-day.selected {
+                background: #1e40af !important;
+                border-color: #1e40af !important;
+            }
+            .flatpickr-day:hover {
+                background: #dbeafe !important;
+                border-color: #bfdbfe !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Filter function
+        function filterSchedules() {
+            const selectedDate = calendar.selectedDates[0] ? calendar.selectedDates[0].toISOString().split('T')[0] : null;
+            const vesselType = document.getElementById('vessel-type-filter').value;
+            const route = document.getElementById('route-filter').value;
+            
+            let hasVisibleSchedules = false;
+            
+            document.querySelectorAll('.schedule-item').forEach(item => {
+                const matchesDate = !selectedDate || item.dataset.date === selectedDate;
+                const matchesVesselType = !vesselType || item.dataset.vesselType === vesselType;
+                const matchesRoute = !route || item.dataset.route === route;
+                
+                const shouldShow = matchesDate && matchesVesselType && matchesRoute;
+                item.style.display = shouldShow ? 'block' : 'none';
+                
+                if (shouldShow) {
+                    hasVisibleSchedules = true;
+                }
+            });
+            
+            // Show/hide no schedules message
+            document.getElementById('no-schedules').style.display = hasVisibleSchedules ? 'none' : 'block';
+        }
+        
+        // Set up filter event listeners
+        document.getElementById('vessel-type-filter').addEventListener('change', filterSchedules);
+        document.getElementById('route-filter').addEventListener('change', filterSchedules);
+        document.getElementById('search-button').addEventListener('click', filterSchedules);
+        
+        // Initial filter
+        filterSchedules();
+    });
+
+</script>
+{% endblock %}

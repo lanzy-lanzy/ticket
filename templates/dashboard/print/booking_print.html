@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Booking #{{ booking.booking_reference }}</title>
+    <style>
+        @media print {
+            body {
+                font-family: Arial, sans-serif;
+                font-size: 12pt;
+                line-height: 1.4;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+            }
+            .booking-details {
+                margin: 20px 0;
+            }
+            .footer {
+                margin-top: 30px;
+                text-align: center;
+                font-size: 10pt;
+            }
+            .qr-code {
+                text-align: center;
+                margin: 20px 0;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                padding: 8px;
+                border: 1px solid #ddd;
+            }
+            @page {
+                margin: 2cm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ company_name }}</h1>
+        <p>{{ company_address }}</p>
+        <p>{{ company_contact }}</p>
+    </div>
+
+    <div class="booking-details">
+        <h2>Booking Details</h2>
+        <table>
+            <tr>
+                <th>Booking Reference</th>
+                <td>{{ booking.booking_reference }}</td>
+            </tr>
+            <tr>
+                <th>Schedule</th>
+                <td>{{ booking.schedule.vessel.name }} - {{ booking.schedule.route.name }}</td>
+            </tr>
+            <tr>
+                <th>Departure</th>
+                <td>{{ booking.schedule.departure_datetime|date:"F d, Y H:i" }}</td>
+            </tr>
+            {% if booking.booking_type == 'passenger' %}
+            <tr>
+                <th>Adult Passengers</th>
+                <td>{{ booking.adult_passengers }}</td>
+            </tr>
+            <tr>
+                <th>Child Passengers</th>
+                <td>{{ booking.child_passengers }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <th>Vehicle Type</th>
+                <td>{{ booking.vehicle_type.name }}</td>
+            </tr>
+            <tr>
+                <th>Plate Number</th>
+                <td>{{ booking.plate_number }}</td>
+            </tr>
+            <tr>
+                <th>Occupants</th>
+                <td>{{ booking.occupant_count }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Total Fare</th>
+                <td>₱{{ total_fare|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <th>Payment Status</th>
+                <td>{% if booking.is_paid %}PAID{% else %}UNPAID{% endif %}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="qr-code">
+        <img src="{% url 'generate_qr_code' booking.booking_reference %}" alt="QR Code">
+    </div>
+
+    <div class="footer">
+        <p>Printed on: {{ print_date|date:"F d, Y H:i" }}</p>
+        <p>This is a computer-generated document. No signature required.</p>
+    </div>
+
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+{% extends 'dashboard/base.html' %}
+{% load humanize%}
+{% block title %}Home{% endblock %}
+{% block header %}Dashboard Overview{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- Total Bookings Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Total Bookings</h3>
+            <i class="fas fa-ticket-alt text-blue-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">{{ total_bookings }}</span>
+            <span class="{% if booking_growth >= 0 %}text-green-500{% else %}text-red-500{% endif %} text-sm">
+                <i class="fas fa-arrow-{% if booking_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ booking_growth|floatformat:1|cut:'-' }}%
+            </span>
+        </div>
+    </div>
+
+    <!-- Revenue Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Total Revenue</h3>
+            <i class="fas fa-peso-sign text-green-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">₱{{ total_revenue|intcomma }}</span>
+            <span class="{% if revenue_growth >= 0 %}text-green-500{% else %}text-red-500{% endif %} text-sm">
+                <i class="fas fa-arrow-{% if revenue_growth >= 0 %}up{% else %}down{% endif %}"></i>
+                {{ revenue_growth|floatformat:1|cut:'-' }}%
+            </span>
+        </div>
+    </div>
+    <!-- Active Vessels Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Active Vessels</h3>
+            <i class="fas fa-ship text-blue-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">{{ active_vessels }}</span>
+            <span class="text-blue-500 text-sm">Active</span>
+        </div>
+    </div>
+
+    <!-- Today's Schedules Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-gray-500 text-sm">Today's Schedules</h3>
+            <i class="fas fa-calendar text-purple-500"></i>
+        </div>
+        <div class="flex items-center justify-between">
+            <span class="text-3xl font-bold">{{ todays_schedules }}</span>
+            <span class="text-purple-500 text-sm">Today</span>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Bookings Table -->
+<div class="bg-white rounded-lg shadow mb-6">
+    <div class="p-6 border-b">
+        <h2 class="text-lg font-semibold">Recent Bookings</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Schedule</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for booking in recent_bookings %}
+                <tr>
+                    <td class="px-6 py-4">{{ booking.booking_reference }}</td>
+                    <td class="px-6 py-4">{{ booking.full_name }}</td>
+                    <td class="px-6 py-4">{{ booking.get_booking_type_display }}</td>
+                    <td class="px-6 py-4">{{ booking.schedule }}</td>
+                    <td class="px-6 py-4">
+                        {% if booking.is_paid %}
+                        <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Paid</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-semibold text-yellow-700 bg-yellow-100 rounded-full">Pending</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Upcoming Schedules -->
+<div class="bg-white rounded-lg shadow">
+    <div class="p-6 border-b flex justify-between items-center">
+        <h2 class="text-lg font-semibold">Upcoming Schedules</h2>
+        <a href="{% url 'dashboard_schedules' %}" class="text-blue-600 hover:text-blue-800 text-sm">
+            View All <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for schedule in upcoming_schedules %}
+            <div class="border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="font-semibold">{{ schedule.vessel.name }}</span>
+                    <span class="text-sm text-gray-500">{{ schedule.departure_datetime|date:"M d, Y" }}</span>
+                </div>
+                <div class="space-y-1 text-sm text-gray-600">
+                    <p><i class="fas fa-clock mr-2"></i>{{ schedule.departure_datetime|date:"H:i" }}</p>
+                    <p><i class="fas fa-map-marker-alt mr-2"></i>{{ schedule.route.name }}</p>
+                    <p><i class="fas fa-users mr-2"></i>{{ schedule.available_seats }} seats available</p>
+                    <p><i class="fas fa-box mr-2"></i>{{ schedule.available_cargo_space }} tons space</p>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-medium text-gray-500">
+                            {% if schedule.status == 'scheduled' %}
+                            <span class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Scheduled</span>
+                            {% elif schedule.status == 'delayed' %}
+                            <span class="text-yellow-600"><i class="fas fa-exclamation-circle mr-1"></i> Delayed</span>
+                            {% elif schedule.status == 'cancelled' %}
+                            <span class="text-red-600"><i class="fas fa-times-circle mr-1"></i> Cancelled</span>
+                            {% else %}
+                            <span class="text-blue-600"><i class="fas fa-info-circle mr-1"></i> {{ schedule.status|title }}</span>
+                            {% endif %}
+                        </span>
+                        <a href="{% url 'dashboard_schedules' %}?id={{ schedule.id }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                            Details <i class="fas fa-chevron-right ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-3 text-center py-8">
+                <i class="fas fa-calendar-times text-gray-400 text-4xl mb-3"></i>
+                <p class="text-gray-500">No upcoming schedules found</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Active Routes Summary -->
+<div class="bg-white rounded-lg shadow mt-6">
+    <div class="p-6 border-b flex justify-between items-center">
+        <h2 class="text-lg font-semibold">Active Routes</h2>
+        <a href="{% url 'route_list' %}" class="text-blue-600 hover:text-blue-800 text-sm">
+            Manage Routes <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for route in active_routes_list|slice:":4" %}
+            <div class="border rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center">
+                        <div class="bg-blue-100 rounded-full p-3 mr-4">
+                            <i class="fas fa-route text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-900">{{ route.name }}</h3>
+                            <p class="text-sm text-gray-600">{{ route.origin }} to {{ route.destination }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Active</span>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <div class="flex justify-between items-center text-sm text-gray-500">
+                        <span><i class="fas fa-clock mr-2"></i>{{ route.estimated_duration }}</span>
+                        <a href="{% url 'schedules' %}?route={{ route.id }}" class="text-blue-600 hover:text-blue-800">
+                            View Schedules <i class="fas fa-chevron-right ml-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-2 text-center py-8">
+                <i class="fas fa-map-signs text-gray-400 text-4xl mb-3"></i>
+                <p class="text-gray-500">No active routes found</p>
+                <a href="{% url 'add_route' %}" class="mt-2 inline-block text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus-circle mr-1"></i> Add a route
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="bg-white rounded-lg shadow mt-6">
+    <div class="p-6 border-b">
+        <h2 class="text-lg font-semibold">Quick Actions</h2>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="{% url 'booking_list' %}" class="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-blue-50 transition-colors">
+                <div class="bg-blue-100 rounded-full p-3 mb-2">
+                    <i class="fas fa-ticket-alt text-blue-600"></i>
+                </div>
+                <span class="text-sm font-medium">New Booking</span>
+            </a>
+            
+            <a href="{% url 'dashboard_schedules' %}" class="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-blue-50 transition-colors">
+                <div class="bg-purple-100 rounded-full p-3 mb-2">
+                    <i class="fas fa-calendar-plus text-purple-600"></i>
+                </div>
+                <span class="text-sm font-medium">Add Schedule</span>
+            </a>
+            
+            <a href="{% url 'add_vessel' %}" class="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-blue-50 transition-colors">
+                <div class="bg-green-100 rounded-full p-3 mb-2">
+                    <i class="fas fa-ship text-green-600"></i>
+                </div>
+                <span class="text-sm font-medium">Add Vessel</span>
+            </a>
+            
+            <a href="{% url 'reports' %}" class="flex flex-col items-center justify-center p-4 border rounded-lg hover:bg-blue-50 transition-colors">
+                <div class="bg-green-100 rounded-full p-3 mb-2">
+                    <i class="fas fa-chart-bar text-green-600"></i>
+                </div>
+                <span class="text-sm font-medium">View Reports</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

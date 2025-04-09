@@ -1,0 +1,470 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome to Maritime Booking{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Carousel -->
+<div class="relative h-[600px]">
+    <!-- Carousel Container -->
+    <div class="relative h-full overflow-hidden">
+        <!-- Slide 1 -->
+        <div class="absolute inset-0 bg-cover bg-center transition-all duration-500 hover-3d" 
+             style="background-image: url('{% static 'images/tripferry_cover.png' %}');">
+            <div class="absolute inset-0 bg-black opacity-40"></div>
+        </div>
+        <!-- Slide 2 -->
+        <div class="absolute inset-0 bg-cover bg-center transition-all duration-500 hover-3d" 
+             style="background-image: url('{% static 'images/ferry_cover_2.jpg' %}');">
+            <div class="absolute inset-0 bg-black opacity-40"></div>
+        </div>
+    </div>
+
+    <style>
+        .hover-3d {
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            transition: transform 0.3s ease;
+        }
+
+        .hover-3d:hover {
+            transform: 
+                perspective(1000px)
+                rotateX(5deg)
+                rotateY(5deg)
+                scale3d(1.05, 1.05, 1.05);
+            box-shadow: 
+                20px 20px 50px rgba(0,0,0,0.5),
+                -20px -20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Add mouse move effect */
+        .hover-3d {
+            transition: transform 0.1s ease;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.hover-3d');
+            
+            cards.forEach(card => {
+                card.addEventListener('mousemove', e => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    const rotateX = (y - centerY) / 20;
+                    const rotateY = (centerX - x) / 20;
+                    
+                    card.style.transform = `
+                        perspective(1000px)
+                        rotateX(${rotateX}deg)
+                        rotateY(${rotateY}deg)
+                        scale3d(1.05, 1.05, 1.05)
+                    `;
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'none';
+                });
+            });
+        });
+    </script>
+
+    <!-- Content Overlay -->
+    <div class="absolute inset-0 flex items-center">
+        <div class="container mx-auto px-4">
+            <div class="text-white max-w-2xl relative z-10">
+                <h1 class="text-5xl font-bold mb-4 animate-fade-in">Set Sail with Confidence</h1>
+                <p class="text-xl mb-8 animate-fade-in-delay">Experience seamless maritime travel with our state-of-the-art vessels and professional service.</p>
+                <div class="space-y-4">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'schedules' %}" 
+                           class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg">
+                            <i class="fas fa-ticket-alt mr-2"></i> Book Now
+                        </a>
+                        {% if not user.is_staff %}
+                            <p class="text-white text-sm mt-2">Welcome back, {{ user.username }}! Ready to book your next journey?</p>
+                        {% endif %}
+                    {% else %}
+                        <a href="{% url 'login' %}" 
+                           class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300 transform hover:scale-105 hover:shadow-lg">
+                            <i class="fas fa-sign-in-alt mr-2"></i> Login to Book
+                        </a>
+                        <p class="text-white text-sm mt-2">New user? <a href="{% url 'register' %}" class="underline hover:text-blue-300">Register here</a> to start booking.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carousel Navigation -->
+    <div class="absolute bottom-5 left-0 right-0 flex justify-center space-x-2">
+        <button class="w-3 h-3 rounded-full bg-white opacity-50 hover:opacity-100 transition-opacity duration-300"></button>
+        <button class="w-3 h-3 rounded-full bg-white opacity-50 hover:opacity-100 transition-opacity duration-300"></button>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="container mx-auto px-4 py-16">
+    <h2 class="text-3xl font-bold text-center mb-12">Our Services</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <a href="{% url 'schedules' %}" class="text-center p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition duration-300">
+            <i class="fas fa-ship text-4xl text-blue-600 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">View Schedules</h3>
+            <p class="text-gray-600">Check our latest ferry schedules and plan your journey.</p>
+        </a>
+        <a href="{% url 'guidelines' %}" class="text-center p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition duration-300">
+            <i class="fas fa-book text-4xl text-blue-600 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Travel Guidelines</h3>
+            <p class="text-gray-600">Learn about our travel policies and requirements.</p>
+        </a>
+        <a href="{% url 'contact' %}" class="text-center p-6 bg-white rounded-lg shadow-lg hover:shadow-xl transition duration-300">
+            <i class="fas fa-phone text-4xl text-blue-600 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Contact Us</h3>
+            <p class="text-gray-600">Get in touch with our support team for assistance.</p>
+        </a>
+    </div>
+</div>
+
+<!-- User Dashboard Section (for registered non-staff users) -->
+{% if user.is_authenticated and not user.is_staff %}
+<div class="bg-blue-50 py-12">
+    <div class="container mx-auto px-4">
+        <h2 class="text-3xl font-bold text-center mb-8">Your Travel Dashboard</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-ticket-alt text-blue-600 mr-2"></i> Quick Booking
+                </h3>
+                <p class="text-gray-600 mb-4">Ready to set sail? Book your next journey in just a few clicks.</p>
+                <a href="{% url 'schedules' %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition duration-300">
+                    Book Now
+                </a>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-calendar-alt text-blue-600 mr-2"></i> View Schedules
+                </h3>
+                <p class="text-gray-600 mb-4">Check upcoming ferry schedules and plan your trip accordingly.</p>
+                <a href="{% url 'schedules' %}" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition duration-300">
+                    View Schedules
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Testimonials Section -->
+<div class="bg-gray-50 py-16">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold mb-4">Customer Testimonials</h2>
+            <div class="flex items-center justify-center mb-2">
+                <div class="flex text-yellow-400 mr-2">
+                    {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= avg_rating %}
+                            <i class="fas fa-star"></i>
+                        {% elif forloop.counter <= avg_rating|add:0.5 %}
+                            <i class="fas fa-star-half-alt"></i>
+                        {% else %}
+                            <i class="far fa-star"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="text-xl font-bold">{{ avg_rating }} out of 5</span>
+            </div>
+            <p class="text-gray-600">See what our customers say about their journey with us</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for rating in testimonials %}
+                {% if rating.is_approved %}
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <div class="flex text-yellow-400 mb-4">
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= rating.rating %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <p class="text-gray-600 mb-4">"{{ rating.comment }}"</p>
+                        <div class="border-t pt-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="font-semibold">
+                                        {% if rating.user and rating.user.get_full_name %}
+                                            {{ rating.user.get_full_name }}
+                                        {% else %}
+                                            {{ rating.full_name|default:"Anonymous" }}
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-sm text-gray-500">
+                                        {{ rating.vessel.name }}
+                                    </p>
+                                </div>
+                                <p class="text-xs text-gray-400">{{ rating.created_at|date:"M d, Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% empty %}
+                <div class="col-span-3 text-center py-8">
+                    <p class="text-gray-500">No testimonials available yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Call to Action for Reviews -->
+        {% if user.is_authenticated %}
+            <div class="text-center mt-12">
+                <button onclick="openRatingModal()" 
+                        class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300">
+                    <i class="fas fa-star mr-2"></i> Share Your Experience
+                </button>
+            </div>
+        {% else %}
+            <div class="text-center mt-12">
+                <p class="text-gray-600 mb-4">Want to share your experience?</p>
+                <a href="{% url 'login' %}?next={{ request.path }}" 
+                   class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition duration-300">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Login to Review
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add quick links in the Call to Action section -->
+<div class="bg-blue-800 text-white py-16">
+    <div class="container mx-auto px-4 text-center">
+        <h2 class="text-3xl font-bold mb-4">Ready to Start Your Journey?</h2>
+        <p class="text-xl mb-8">Book your maritime adventure today and experience the difference.</p>
+        <div class="flex flex-wrap justify-center gap-4">
+            {% if user.is_authenticated %}
+                <a href="{% url 'booking' %}" class="inline-block bg-white text-blue-800 font-bold py-3 px-8 rounded-full hover:bg-gray-100 transition duration-300">
+                    <i class="fas fa-ticket-alt mr-2"></i> Book Your Trip
+                </a>
+            {% else %}
+                <a href="{% url 'register' %}" class="inline-block bg-white text-blue-800 font-bold py-3 px-8 rounded-full hover:bg-gray-100 transition duration-300">
+                    <i class="fas fa-user-plus mr-2"></i> Register Now
+                </a>
+                <a href="{% url 'login' %}" class="inline-block bg-blue-700 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Login
+                </a>
+            {% endif %}
+            <a href="{% url 'schedules' %}" class="inline-block bg-blue-700 text-white font-bold py-3 px-8 rounded-full hover:bg-blue-600 transition duration-300">
+                <i class="fas fa-calendar-alt mr-2"></i> View Schedules
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Rating Modal -->
+<div id="ratingModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold">Share Your Experience</h3>
+            <button onclick="closeRatingModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="ratingForm" method="POST" action="{% url 'submit_rating' %}" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Vessel Selection -->
+            <div>
+                <label for="vessel" class="block text-sm font-medium text-gray-700 mb-2">Select Vessel</label>
+                <select name="vessel" id="vessel" required class="w-full border-gray-300 rounded-lg shadow-sm">
+                    {% for vessel in vessels %}
+                        <option value="{{ vessel.id }}">{{ vessel.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Rating Stars -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
+                <div class="flex space-x-2">
+                    {% for i in "12345"|make_list %}
+                        <button type="button" 
+                                onclick="setRating({{ forloop.counter }})"
+                                class="rating-star text-gray-400 hover:text-yellow-400 transition-colors">
+                            <i class="far fa-star text-2xl"></i>
+                        </button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" name="rating" id="ratingInput" required>
+            </div>
+
+            <!-- Comment -->
+            <div>
+                <label for="comment" class="block text-sm font-medium text-gray-700 mb-2">Your Review</label>
+                <textarea name="comment" 
+                          id="comment" 
+                          required
+                          rows="4" 
+                          class="w-full border-gray-300 rounded-lg shadow-sm"
+                          placeholder="Share your experience with us..."></textarea>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex justify-end space-x-4">
+                <button type="button" 
+                        onclick="closeRatingModal()"
+                        class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Submit Review
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 1s ease-out forwards;
+    }
+    
+    .animate-fade-in-delay {
+        animation: fadeIn 1s ease-out 0.3s forwards;
+        opacity: 0;
+    }
+
+    @keyframes carousel {
+        0%, 45% { opacity: 1; }
+        50%, 95% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    .relative h-full overflow-hidden > div:first-child {
+        animation: carousel 10s infinite;
+    }
+
+    .relative h-full overflow-hidden > div:nth-child(2) {
+        animation: carousel 10s infinite reverse;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.carousel-dot');
+    let currentSlide = 0;
+
+    function updateCarousel() {
+        slides.forEach((slide, index) => {
+            if (index === currentSlide) {
+                slide.style.opacity = '1';
+                dots[index].classList.add('opacity-100');
+                dots[index].classList.remove('opacity-50');
+            } else {
+                slide.style.opacity = '0';
+                dots[index].classList.add('opacity-50');
+                dots[index].classList.remove('opacity-100');
+            }
+        });
+        
+        currentSlide = (currentSlide + 1) % slides.length;
+    }
+
+    // Initial state
+    updateCarousel();
+    
+    // Auto-advance carousel
+    setInterval(updateCarousel, 5000);
+
+    // Manual navigation
+    dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+            currentSlide = index;
+            updateCarousel();
+        });
+    });
+});
+
+function openRatingModal() {
+    document.getElementById('ratingModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeRatingModal() {
+    document.getElementById('ratingModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+function setRating(rating) {
+    document.getElementById('ratingInput').value = rating;
+    
+    // Update star appearance
+    const stars = document.querySelectorAll('.rating-star');
+    stars.forEach((star, index) => {
+        const starIcon = star.querySelector('i');
+        if (index < rating) {
+            starIcon.classList.remove('far');
+            starIcon.classList.add('fas');
+            star.classList.add('text-yellow-400');
+        } else {
+            starIcon.classList.remove('fas');
+            starIcon.classList.add('far');
+            star.classList.remove('text-yellow-400');
+        }
+    });
+}
+
+// Handle form submission
+document.getElementById('ratingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            body: new FormData(this),
+            headers: {
+                'X-CSRFToken': this.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            closeRatingModal();
+            // Show success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg';
+            toast.textContent = 'Thank you! Your review will be visible after approval.';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+            
+            // Reset form
+            this.reset();
+            setRating(0);
+        } else {
+            throw new Error(result.error || 'Something went wrong');
+        }
+    } catch (error) {
+        alert(error.message);
+    }
+});
+</script>
+{% endblock %}

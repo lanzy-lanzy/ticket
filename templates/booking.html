@@ -1,0 +1,511 @@
+{% extends 'base.html' %}
+{% load booking_extras %}
+
+{% block title %}Book Your Trip{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen">
+    {% include 'includes/hero_section.html' with title="Book Your Journey" subtitle="Select your preferred schedule and complete your booking" %}
+
+    <div class="container mx-auto px-4 py-12">
+        {% if error %}
+        <div class="max-w-3xl mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+            <p class="font-bold">Error</p>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Schedule Selection -->
+        <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 mb-8 transition-transform duration-300 hover:shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-calendar-alt text-blue-600 mr-3"></i>
+                Select Schedule
+            </h2>
+
+            <form method="get" action="{% url 'booking' %}" class="space-y-4">
+                <div class="flex space-x-2">
+                    <select id="schedule-select" name="schedule" required
+                            class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            hx-get="{% url 'get_schedule_fares' 0 %}"
+                            hx-trigger="change"
+                            hx-target="#fare-details"
+                            hx-swap="innerHTML">
+                        <option value="">Select a schedule</option>
+                        {% for schedule in schedules %}
+                        <option value="{{ schedule.id }}" {% if selected_schedule.id == schedule.id %}selected{% endif %}>
+                            {{ schedule.vessel.name }} - {{ schedule.route.name }} - {{ schedule.departure_datetime|date:"F d, Y H:i" }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <script>
+                        // Initialize fare calculation when page loads if a schedule is already selected
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const scheduleSelect = document.getElementById('schedule-select');
+                            if (scheduleSelect && scheduleSelect.value) {
+                                // Trigger the change event to calculate fare
+                                const event = new Event('change');
+                                scheduleSelect.dispatchEvent(event);
+                            }
+                        });
+                    </script>
+                </div>
+            </form>
+
+            <!-- Dynamic Fare Details -->
+            <div id="fare-details" class="mt-6 bg-blue-50 p-4 rounded-lg">
+                {% if selected_schedule %}
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="text-center p-4 bg-white rounded-lg shadow">
+                        <p class="text-gray-600">Adult Fare</p>
+                        <p class="text-2xl font-bold text-blue-600">₱{{ selected_schedule.adult_fare }}</p>
+                    </div>
+                    <div class="text-center p-4 bg-white rounded-lg shadow">
+                        <p class="text-gray-600">Child Fare</p>
+                        <p class="text-2xl font-bold text-blue-600">₱{{ selected_schedule.child_fare }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center text-gray-600">Select a schedule to view fare details</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Booking Form -->
+        <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-ticket-alt text-blue-600 mr-3"></i>
+                Booking Details
+            </h2>
+
+            <form id="booking-form" method="post" action="{% url 'create_booking' %}" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
+
+                <!-- Booking Type Selection -->
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Booking Type</label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="booking_type" value="passenger" checked
+                                   class="form-radio text-blue-600" onclick="toggleBookingType('passenger')">
+                            <span>Passenger</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="booking_type" value="vehicle"
+                                   class="form-radio text-blue-600" onclick="toggleBookingType('vehicle')">
+                            <span>Vehicle</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Passenger Details -->
+                <div id="passenger-details" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Adult Passengers</label>
+                            <input type="number" name="adult_passengers" id="adult_passengers" min="1" value="1"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   hx-get="{% url 'calculate_fare' %}"
+                                   hx-trigger="change, keyup delay:500ms"
+                                   hx-target="#fare-summary"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers']"
+                                   onchange="updatePassengerFields(); updateFareSummary();">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Child Passengers</label>
+                            <input type="number" name="child_passengers" id="child_passengers" min="0" value="0"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   hx-get="{% url 'calculate_fare' %}"
+                                   hx-trigger="change, keyup delay:500ms"
+                                   hx-target="#fare-summary"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers']"
+                                   onchange="updatePassengerFields(); updateFareSummary();">
+                        </div>
+                    </div>
+
+                    <!-- Passenger Names Section -->
+                    <div id="passenger-names-container" class="mt-4 space-y-4">
+                        <h3 class="font-bold text-gray-800">Passenger Names</h3>
+                        <p class="text-sm text-gray-600 mb-4">Please enter the full name of each passenger</p>
+
+                        <!-- Adult Passengers -->
+                        <div id="adult-passengers-container" class="space-y-3">
+                            <h4 class="text-md font-semibold text-gray-700">Adult Passengers</h4>
+                            <div id="adult-passenger-fields" class="space-y-2">
+                                <!-- Adult passenger fields will be added here dynamically -->
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" name="adult_passenger_name_1"
+                                           class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="Adult Passenger 1 Full Name" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Child Passengers -->
+                        <div id="child-passengers-container" class="space-y-3" style="display: none;">
+                            <h4 class="text-md font-semibold text-gray-700">Child Passengers</h4>
+                            <div id="child-passenger-fields" class="space-y-2">
+                                <!-- Child passenger fields will be added here dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fare Summary -->
+                    <div id="fare-summary" class="bg-gray-50 p-4 rounded-lg">
+    {% if selected_schedule.adult_fare is not None and selected_schedule.child_fare is not None %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      <h3 class="font-bold text-gray-800 mb-3">Fare Summary</h3>
+      <div class="space-y-2">
+          <div class="flex justify-between">
+              <span>
+                  Adult Fare (₱{{ selected_schedule.adult_fare|floatformat:2 }} × <span id="adult-count">1</span>)
+              </span>
+              <span class="font-semibold">
+                  ₱{{ selected_schedule.adult_fare|multiply:1 }}
+              </span>
+          </div>
+          <div class="flex justify-between">
+              <span>
+                  Child Fare (₱{{ selected_schedule.child_fare|floatformat:2 }} × <span id="child-count">0</span>)
+              </span>
+              <span class="font-semibold">
+                  ₱{{ selected_schedule.child_fare|multiply:0 }}
+              </span>
+          </div>
+          <div class="border-t pt-2 flex justify-between font-bold">
+              <span>Total Amount</span>
+              <span class="text-blue-600">
+                  ₱<span id="total-amount">{{ selected_schedule.adult_fare|floatformat:2 }}</span>
+              </span>
+          </div>
+      </div>
+    {% else %}
+
+
+
+      <p class="text-gray-600 text-center">
+          Fare details are not applicable for vehicle bookings.
+      </p>
+    {% endif %}
+</div>
+
+                </div>                <!-- Vehicle Details -->
+                <div id="vehicle-details" class="space-y-6" style="display: none;">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Vehicle Type</label>
+                            <select id="vehicle_type" name="vehicle_type" class="form-select">
+                                {% for vehicle_type in vehicle_types %}
+                                    <option value="{{ vehicle_type.id }}" data-base-fare="{{ vehicle_type.base_fare }}">
+                                        {{ vehicle_type.name }} - ₱{{ vehicle_type.base_fare }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Plate Number</label>
+                            <input type="text" name="plate_number"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="Enter plate number">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">
+                                Number of Occupants
+                                <span class="text-sm text-gray-500" id="max-occupants-info"></span>
+                            </label>
+                            <input type="number" name="occupant_count" min="1" value="1"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">
+                                Cargo Weight (tons)
+                                <span class="text-sm text-gray-500" id="max-cargo-info"></span>
+                            </label>
+                            <input type="number" name="cargo_weight" min="0" step="0.1" value="0"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Fare Details -->
+                    <div id="vehicle-fare-details" class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-center text-gray-600">Select a vehicle type to view fare details</p>
+                    </div>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                        <input type="text" name="full_name" required
+                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Contact Number</label>
+                            <input type="tel"
+                                   name="contact_number"
+                                   required
+                                   pattern="[+][0-9]{11,14}"
+                                   placeholder="+639123456789"
+                                   title="Please enter a valid phone number starting with + and country code"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-sm text-gray-500 mt-1">Format: +639123456789</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                            <input type="email" name="email" required
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        <i class="fas fa-check-circle mr-2"></i>Confirm Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleBookingType(type) {
+    const passengerDetails = document.getElementById('passenger-details');
+    const vehicleDetails = document.getElementById('vehicle-details');
+
+    if (type === 'passenger') {
+        passengerDetails.style.display = 'block';
+        vehicleDetails.style.display = 'none';
+        console.log('Showing passenger details');
+    } else if (type === 'vehicle') {
+        passengerDetails.style.display = 'none';
+        vehicleDetails.style.display = 'block';
+        console.log('Showing vehicle details');
+    }
+}
+
+// Initialize the form with passenger type selected
+document.addEventListener('DOMContentLoaded', function() {
+    const scheduleSelect = document.getElementById('schedule-select');
+    const bookingForm = document.getElementById('booking-form');
+
+    // Set initial state
+    toggleBookingType('passenger');
+
+    // Initialize passenger fields
+    updatePassengerFields();
+
+    // Add event listeners to radio buttons
+    document.querySelectorAll('input[name="booking_type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            toggleBookingType(e.target.value);
+        });
+    });
+
+    // Update hidden schedule input when schedule is selected
+    scheduleSelect.addEventListener('change', function() {
+        const scheduleId = this.value;
+        if (scheduleId) {
+            const url = this.getAttribute('hx-get').replace('/0/', `/${scheduleId}/`);
+            this.setAttribute('hx-get', url);
+            htmx.trigger(this, 'change');
+        }
+    });
+
+    // Form validation
+    if (bookingForm) {
+        bookingForm.addEventListener('submit', function(e) {
+            const scheduleId = document.querySelector('select[name="schedule"]').value;
+            const bookingType = document.querySelector('input[name="booking_type"]:checked').value;
+
+            if (!scheduleId) {
+                e.preventDefault();
+                alert('Please select a schedule before proceeding with the booking.');
+                return false;
+            }
+
+            if (bookingType === 'vehicle') {
+                const vehicleType = document.querySelector('select[name="vehicle_type"]').value;
+                const plateNumber = document.querySelector('input[name="plate_number"]').value;
+
+                if (!vehicleType) {
+                    e.preventDefault();
+                    alert('Please select a vehicle type.');
+                    return false;
+                }
+
+                if (!plateNumber.trim()) {
+                    e.preventDefault();
+                    alert('Please enter a plate number.');
+                    return false;
+                }
+            }
+        });
+    }
+
+    // Add this JavaScript to handle vehicle type selection
+    const vehicleTypeSelect = document.getElementById('vehicle-type-select');
+    const occupantInput = document.querySelector('input[name="occupant_count"]');
+    const cargoInput = document.querySelector('input[name="cargo_weight"]');
+    const maxOccupantsInfo = document.getElementById('max-occupants-info');
+    const maxCargoInfo = document.getElementById('max-cargo-info');
+
+    vehicleTypeSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const maxOccupants = selectedOption.dataset.maxOccupants;
+        const maxCargo = selectedOption.dataset.maxCargo;
+
+        // Update max values and info text
+        if (maxOccupants) {
+            occupantInput.max = maxOccupants;
+            maxOccupantsInfo.textContent = `(Max: ${maxOccupants})`;
+        }
+        if (maxCargo) {
+            cargoInput.max = maxCargo;
+            maxCargoInfo.textContent = `(Max: ${maxCargo} tons)`;
+        }
+
+        // Validate current values
+        if (parseInt(occupantInput.value) > parseInt(maxOccupants)) {
+            occupantInput.value = maxOccupants;
+        }
+        if (parseFloat(cargoInput.value) > parseFloat(maxCargo)) {
+            cargoInput.value = maxCargo;
+        }
+    });
+
+    // Add validation for occupants and cargo
+    occupantInput.addEventListener('change', function() {
+        const maxOccupants = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxOccupants;
+        if (parseInt(this.value) > parseInt(maxOccupants)) {
+            alert(`Maximum ${maxOccupants} occupants allowed for this vehicle type`);
+            this.value = maxOccupants;
+        }
+    });
+
+    cargoInput.addEventListener('change', function() {
+        const maxCargo = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxCargo;
+        if (parseFloat(this.value) > parseFloat(maxCargo)) {
+            alert(`Maximum ${maxCargo} tons of cargo allowed for this vehicle type`);
+            this.value = maxCargo;
+        }
+    });
+});
+
+document.getElementById('booking-form').addEventListener('submit', function(e) {
+    const phoneInput = document.querySelector('input[name="contact_number"]');
+    const phoneNumber = phoneInput.value;
+
+    if (!phoneNumber.startsWith('+')) {
+        e.preventDefault();
+        alert('Phone number must start with + and country code (e.g., +639123456789)');
+    }
+});
+
+function updateVehicleFare() {
+    const vehicleTypeSelect = document.getElementById('vehicle_type');
+    if (!vehicleTypeSelect) return;
+
+    const selectedOption = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex];
+    if (!selectedOption) return;
+
+    const baseFare = selectedOption.getAttribute('data-base-fare');
+    if (baseFare) {
+        const formattedFare = parseFloat(baseFare).toFixed(2);
+        document.getElementById('vehicle_fare_display').textContent = `₱${formattedFare}`;
+        document.getElementById('total_fare_display').textContent = `₱${formattedFare}`;
+    }
+}
+
+// Add event listener for vehicle type change
+document.getElementById('vehicle_type')?.addEventListener('change', updateVehicleFare);
+
+// Function to dynamically update passenger name fields
+function updatePassengerFields() {
+    const adultCount = parseInt(document.getElementById('adult_passengers').value) || 0;
+    const childCount = parseInt(document.getElementById('child_passengers').value) || 0;
+
+    // Update adult passenger fields
+    const adultContainer = document.getElementById('adult-passenger-fields');
+    adultContainer.innerHTML = '';
+
+    for (let i = 1; i <= adultCount; i++) {
+        const field = document.createElement('div');
+        field.className = 'flex items-center space-x-2';
+        field.innerHTML = `
+            <input type="text" name="adult_passenger_name_${i}"
+                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="Adult Passenger ${i} Full Name" required>
+        `;
+        adultContainer.appendChild(field);
+    }
+
+    // Update child passenger fields
+    const childContainer = document.getElementById('child-passengers-container');
+    const childFieldsContainer = document.getElementById('child-passenger-fields');
+
+    if (childCount > 0) {
+        childContainer.style.display = 'block';
+        childFieldsContainer.innerHTML = '';
+
+        for (let i = 1; i <= childCount; i++) {
+            const field = document.createElement('div');
+            field.className = 'flex items-center space-x-2';
+            field.innerHTML = `
+                <input type="text" name="child_passenger_name_${i}"
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Child Passenger ${i} Full Name" required>
+            `;
+            childFieldsContainer.appendChild(field);
+        }
+    } else {
+        childContainer.style.display = 'none';
+    }
+}
+
+// Function to update fare summary without HTMX
+function updateFareSummary() {
+    // Update the passenger count display
+    const adultCount = parseInt(document.getElementById('adult_passengers').value) || 0;
+    const childCount = parseInt(document.getElementById('child_passengers').value) || 0;
+
+    // Update the count display
+    const adultCountDisplay = document.getElementById('adult-count');
+    const childCountDisplay = document.getElementById('child-count');
+
+    if (adultCountDisplay) adultCountDisplay.textContent = adultCount;
+    if (childCountDisplay) childCountDisplay.textContent = childCount;
+
+    // This is a fallback in case HTMX fails to update the fare summary
+    // The actual fare calculation is done by the server via HTMX
+}
+</script>
+{% endblock %}

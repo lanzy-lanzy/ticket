@@ -1,0 +1,112 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Ratings{% endblock %}
+{% block header %}Customer Ratings & Feedback Management{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-6">
+    <!-- Ratings Overview -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-semibold">Customer Ratings</h2>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl font-bold">{{ avg_rating }}</span>
+                    <div class="flex text-yellow-400">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= avg_rating %}
+                                <i class="fas fa-star"></i>
+                            {% elif forloop.counter <= avg_rating|add:0.5 %}
+                                <i class="fas fa-star-half-alt"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ratings List -->
+        <div class="p-6">
+            {% for rating in ratings %}
+            <div class="border-b border-gray-200 py-4 last:border-0">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="flex text-yellow-400">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= rating.rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="text-gray-500 text-sm">{{ rating.created_at|date:"M d, Y" }}</span>
+                            {% if not rating.is_approved %}
+                                <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                            {% endif %}
+                        </div>
+                        <p class="font-semibold">{{ rating.vessel.name }}</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button
+                            class="text-blue-600 hover:text-blue-800 px-3 py-1 rounded-md border border-blue-600 hover:bg-blue-50"
+                            hx-get="{% url 'rating_details' rating.id %}"
+                            hx-target="#ratingDetailsContent"
+                            hx-trigger="click"
+                            onclick="document.getElementById('ratingDetailsModal').classList.remove('hidden')">
+                            <i class="fas fa-eye mr-1"></i> View
+                        </button>
+                        {% if not rating.is_approved %}
+                        <form method="post" action="{% url 'approve_rating' rating.id %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="text-green-600 hover:text-green-800 px-3 py-1 rounded-md border border-green-600 hover:bg-green-50">
+                                <i class="fas fa-check mr-1"></i> Approve
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="text-gray-600 mt-2">{{ rating.comment }}</p>
+            </div>
+            {% empty %}
+            <div class="text-center py-8">
+                <p class="text-gray-500">No ratings found.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Rating Details Modal -->
+<div id="ratingDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold text-gray-900">Rating Details</h3>
+            <button onclick="document.getElementById('ratingDetailsModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="ratingDetailsContent">
+            <!-- Content will be loaded here by HTMX -->
+            <div class="flex justify-center">
+                <i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Close modal when clicking outside
+    document.getElementById('ratingDetailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}
+

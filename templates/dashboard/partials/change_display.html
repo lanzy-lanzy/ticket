@@ -1,0 +1,23 @@
+{% if change >= 0 %}
+<div class="mt-4 bg-green-50 rounded-lg p-4 border border-green-200 animate-fade-in">
+    <div class="flex justify-between items-center">
+        <div>
+            <p class="text-sm font-medium text-green-800">Change Due</p>
+            <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input type="text" 
+                       id="change-amount" 
+                       name="change_amount"
+                       value="{{ change|floatformat:2 }}"
+                       readonly 
+                       class="bg-gray-100 focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md {% if not is_sufficient %}border-red-500{% endif %}">
+            </div>
+        </div>
+        <div class="bg-green-100 p-3 rounded-full">
+            <i class="fas fa-exchange-alt text-green-500 text-xl"></i>
+        </div>
+    </div>
+</div>
+{% endif %}

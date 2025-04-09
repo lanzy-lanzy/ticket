@@ -1,0 +1,55 @@
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="text-center mb-6">
+        <div class="bg-green-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-check-circle text-3xl text-green-500"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-800">Payment Successful</h2>
+    </div>
+
+    <div class="space-y-4">
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Payment Reference:</span>
+            <span class="font-medium">{{ payment.payment_reference }}</span>
+        </div>
+        
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Booking Reference:</span>
+            <span class="font-medium">{{ booking.booking_reference }}</span>
+        </div>
+
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Amount Paid:</span>
+            <span class="font-medium">₱{{ payment.amount_received|floatformat:2 }}</span>
+        </div>
+
+        {% if payment.change_amount and payment.change_amount > 0 %}
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Change:</span>
+            <span class="font-medium">₱{{ payment.change_amount|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Payment Method:</span>
+            <span class="font-medium">{{ payment.payment_method|title }}</span>
+        </div>
+
+        <div class="flex justify-between items-center py-2 border-b border-gray-100">
+            <span class="text-gray-600">Date:</span>
+            <span class="font-medium">{{ payment.payment_date|date:"F d, Y h:i A" }}</span>
+        </div>
+    </div>
+
+    <div class="mt-8 space-x-4 flex justify-center">
+        <a href="{% url 'print_ticket' booking.booking_reference %}" 
+           class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-150">
+            <i class="fas fa-print mr-2"></i>
+            Print Ticket
+        </a>
+        <a href="{% url 'new_payment' %}" 
+           class="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition duration-150">
+            <i class="fas fa-plus mr-2"></i>
+            New Payment
+        </a>
+    </div>
+</div>

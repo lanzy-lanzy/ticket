@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Maritime Booking System{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-blue-800 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="{% url 'home' %}" class="flex items-center space-x-2">
+                        <i class="fas fa-ship text-2xl"></i>
+                        <span class="font-bold text-xl">Marine Transit </span>
+                    </a>
+                </div>
+                <!-- Update the desktop navigation -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="{% url 'home' %}" class="hover:text-blue-200">Home</a>
+                    <a href="{% url 'schedules' %}" class="hover:text-blue-200">Schedules</a>
+                    <a href="{% url 'guidelines' %}" class="hover:text-blue-200">Guidelines</a>
+                    <a href="{% url 'contact' %}" class="hover:text-blue-200">Contact</a>
+                    
+                    {% if user.is_authenticated %}
+                        {% if user.is_staff %}
+                            <a href="{% url 'dashboard' %}" class="hover:text-blue-200">
+                                <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'logout' %}" class="hover:text-blue-200">
+                            <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                        </a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="hover:text-blue-200">
+                            <i class="fas fa-sign-in-alt mr-1"></i> Login
+                        </a>
+                    {% endif %}
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button class="mobile-menu-button">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu hidden md:hidden bg-blue-800 text-white">
+        <a href="{% url 'home' %}" class="block py-2 px-4 hover:bg-blue-700">Home</a>
+        <a href="{% url 'schedules' %}" class="block py-2 px-4 hover:bg-blue-700">Schedules</a>
+        <a href="{% url 'guidelines' %}" class="block py-2 px-4 hover:bg-blue-700">Guidelines</a>
+        <a href="{% url 'contact' %}" class="block py-2 px-4 hover:bg-blue-700">Contact</a>
+        
+        {% if user.is_authenticated %}
+            {% if user.is_staff %}
+                <a href="{% url 'dashboard' %}" class="block py-2 px-4 hover:bg-blue-700">
+                    <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
+                </a>
+            {% endif %}
+            <a href="{% url 'logout' %}" class="block py-2 px-4 hover:bg-blue-700">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </a>
+        {% else %}
+            <a href="{% url 'login' %}" class="block py-2 px-4 hover:bg-blue-700">
+                <i class="fas fa-sign-in-alt mr-1"></i> Login
+            </a>
+            <a href="{% url 'register' %}" class="block py-2 px-4 hover:bg-blue-700">
+                <i class="fas fa-user-plus mr-1"></i> Register
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Messages display -->
+    {% if messages %}
+    <div class="container mx-auto px-4 mt-4">
+        {% for message in messages %}
+            <div class="p-4 mb-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-blue-800 text-white mt-12">
+        <div class="container mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Maritime Booking</h3>
+                    <p class="text-blue-200">Your trusted partner for maritime transportation.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-blue-200">
+                        <li><a href="#" class="hover:text-white">About Us</a></li>
+                        <li><a href="#" class="hover:text-white">Services</a></li>
+                        <li><a href="#" class="hover:text-white">Terms & Conditions</a></li>
+                        <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Contact Us</h3>
+                    <ul class="space-y-2 text-blue-200">
+                        <li><i class="fas fa-phone mr-2"></i> +1234567890</li>
+                        <li><i class="fas fa-envelope mr-2"></i> info@maritime.com</li>
+                        <li><i class="fas fa-map-marker-alt mr-2"></i> 123 Harbor Street</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-blue-700 text-center text-blue-200">
+                <p>&copy; {% now "Y" %} Maritime Booking. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for mobile menu -->
+    <script>
+        const mobileMenuButton = document.querySelector('.mobile-menu-button');
+        const mobileMenu = document.querySelector('.mobile-menu');
+
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

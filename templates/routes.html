@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Ferry Routes - Sea Transport System{% endblock %}
+
+{% block content %}
+<div class="bg-blue-50 py-16">
+    <div class="container mx-auto px-4">
+        <h1 class="text-4xl font-bold text-center text-blue-800 mb-2">Our Ferry Routes</h1>
+        <p class="text-center text-gray-600 mb-12">Explore our available routes and plan your journey</p>
+        
+        <!-- Routes List -->
+        <div class="max-w-6xl mx-auto">
+            {% if routes %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {% for route in routes %}
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                            <div class="bg-blue-600 text-white p-4">
+                                <h2 class="text-xl font-bold">{{ route.name }}</h2>
+                                <p class="text-blue-100">{{ route.origin }} to {{ route.destination }}</p>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div class="flex items-center mb-4">
+                                    <i class="fas fa-route text-blue-600 mr-3 text-xl"></i>
+                                    <div>
+                                        <p class="text-gray-700">Distance</p>
+                                        <p class="font-bold">{{ route.distance }} nautical miles</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center mb-4">
+                                    <i class="fas fa-clock text-blue-600 mr-3 text-xl"></i>
+                                    <div>
+                                        <p class="text-gray-700">Estimated Duration</p>
+                                        <p class="font-bold">{{ route.estimated_duration }}</p>
+                                    </div>
+                                </div>
+                                
+                                {% if route.description %}
+                                    <div class="mb-4 border-t border-gray-200 pt-4">
+                                        <p class="text-gray-700">{{ route.description }}</p>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- Upcoming Schedules -->
+                                {% if route.upcoming_schedules %}
+                                    <div class="mt-4 border-t border-gray-200 pt-4">
+                                        <h3 class="font-bold text-gray-800 mb-2">Upcoming Departures</h3>
+                                        <ul class="space-y-2">
+                                            {% for schedule in route.upcoming_schedules %}
+                                                <li class="flex items-center justify-between">
+                                                    <div>
+                                                        <i class="fas fa-calendar-alt text-blue-600 mr-2"></i>
+                                                        {{ schedule.departure_datetime|date:"M d, Y" }}
+                                                    </div>
+                                                    <div>
+                                                        <i class="fas fa-clock text-blue-600 mr-2"></i>
+                                                        {{ schedule.departure_datetime|time:"H:i" }}
+                                                    </div>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+                                
+                                <div class="mt-6">
+                                    <a href="{% url 'booking' %}?route={{ route.id }}" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-lg transition duration-300">
+                                        <i class="fas fa-ticket-alt mr-2"></i> Book This Route
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+                    <i class="fas fa-exclamation-circle text-yellow-500 text-4xl mb-4"></i>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">No Routes Available</h3>
+                    <p class="text-gray-600">There are currently no active routes available. Please check back later.</p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Route Map Section -->
+        <div class="max-w-6xl mx-auto mt-16">
+            <h2 class="text-2xl font-bold text-center text-blue-800 mb-8">Our Route Network</h2>
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="aspect-w-16 aspect-h-9 mb-4">
+                    <!-- Replace with actual map or image -->
+                    <div class="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <p class="text-gray-500">Route Map Visualization</p>
+                        <!-- You can replace this with an actual map implementation -->
+                    </div>
+                </div>
+                <p class="text-gray-700 text-center">Our comprehensive network connects major ports and islands, providing reliable transportation services.</p>
+            </div>
+        </div>
+        
+        <!-- Call to Action -->
+        <div class="max-w-4xl mx-auto mt-16 bg-blue-600 rounded-lg shadow-lg p-8 text-center text-white">
+            <h2 class="text-2xl font-bold mb-4">Ready to Book Your Journey?</h2>
+            <p class="mb-6">Secure your spot on one of our ferries today and enjoy a comfortable voyage.</p>
+            <a href="{% url 'booking' %}" class="inline-block bg-white text-blue-600 font-bold py-3 px-8 rounded-lg hover:bg-blue-50 transition duration-300">
+                Book Now
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

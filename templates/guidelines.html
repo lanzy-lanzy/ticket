@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Travel Guidelines - Maritime Booking{% endblock %}
+
+{% block content %}
+{% include 'includes/hero_section.html' with title="Travel Guidelines" subtitle="Important information for a safe and comfortable journey." %}
+
+<div class="container mx-auto px-4 py-12">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Booking Guidelines -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-center mb-6">
+                <div class="inline-block p-3 bg-blue-100 rounded-full mb-4">
+                    <i class="fas fa-ticket-alt text-2xl text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Booking Guidelines</h2>
+            </div>
+            <ul class="space-y-4">
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Book at least 24 hours before departure</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Valid ID required for booking confirmation</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Payment must be completed within 12 hours</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Safety Guidelines -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-center mb-6">
+                <div class="inline-block p-3 bg-blue-100 rounded-full mb-4">
+                    <i class="fas fa-shield-alt text-2xl text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Safety Guidelines</h2>
+            </div>
+            <ul class="space-y-4">
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Follow crew instructions at all times</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Familiarize yourself with emergency exits</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Keep life jacket location in mind</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Luggage Guidelines -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-center mb-6">
+                <div class="inline-block p-3 bg-blue-100 rounded-full mb-4">
+                    <i class="fas fa-suitcase text-2xl text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Luggage Guidelines</h2>
+            </div>
+            <ul class="space-y-4">
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Maximum 2 pieces of luggage per passenger</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Weight limit: 30kg per person</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-500 mt-1 mr-3"></i>
+                    <span>Label all luggage with contact information</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

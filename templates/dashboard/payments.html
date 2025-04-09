@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Process Payment{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen">
+    {% include 'includes/hero_section.html' with title="Payment Processing" subtitle="Complete your payment to confirm your booking" %}
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Main Content Container -->
+        <div class="max-w-4xl mx-auto">
+            {% if error %}
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r" role="alert">
+                <p class="font-bold">Error</p>
+                <p>{{ error }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Payment Processing Card -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <!-- Card Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white">Payment Processing</h2>
+                </div>
+
+                <!-- Card Content -->
+                <div class="p-6 space-y-8">
+                    <!-- Scanner Section -->
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- QR Scanner -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-qrcode mr-2 text-blue-600"></i>
+                                Scan Payment QR
+                            </h3>
+                            <div id="qr-reader" class="mx-auto"></div>
+                            <div id="qr-reader-results" class="mt-4"></div>
+                            <div id="camera-error" class="hidden text-red-600 text-sm mt-2"></div>
+                        </div>
+
+                        <!-- Manual Input -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                                <i class="fas fa-keyboard mr-2 text-blue-600"></i>
+                                Manual Reference Entry
+                            </h3>
+                            <div class="mb-4">
+                                <label for="payment-reference" class="block text-sm font-medium text-gray-700">Payment Reference</label>
+                                <input type="text" 
+                                       id="payment-reference" 
+                                       name="payment-reference" 
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                       hx-get="{% url 'booking_details_html' %}"
+                                       hx-trigger="keyup changed delay:500ms"
+                                       hx-target="#booking-details-container"
+                                       hx-params="payment-reference"
+                                       placeholder="Enter booking reference">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Booking Details Container -->
+                    <div id="booking-details-container" class="space-y-6">
+                        {% if booking %}
+                        <div class="bg-white rounded-lg shadow p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Booking Information -->
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-4">Booking Information</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Booking Type:</span>
+                                            <span class="font-medium">{{ booking.get_booking_type_display }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Reference:</span>
+                                            <span class="font-medium">{{ booking.booking_reference }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Customer:</span>
+                                            <span class="font-medium">{{ booking.full_name }}</span>
+                                        </div>
+                                        {% if booking.booking_type == 'vehicle' %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Vehicle Type:</span>
+                                                <span class="font-medium">{{ booking.vehicle_type.name }}</span>
+                                            </div>
+                                            {% if booking.plate_number %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Plate Number:</span>
+                                                <span class="font-medium">{{ booking.plate_number }}</span>
+                                            </div>
+                                            {% endif %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Occupants:</span>
+                                                <span class="font-medium">{{ booking.occupant_count }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Base Fare:</span>
+                                                <span class="font-medium">₱{{ booking.vehicle_type.base_fare|floatformat:2 }}</span>
+                                            </div>
+                                        {% else %}
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Adult Passengers:</span>
+                                                <span class="font-medium">{{ booking.adult_passengers }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Child Passengers:</span>
+                                                <span class="font-medium">{{ booking.child_passengers }}</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Payment Details -->
+                                <div>
+                                    <h3 class="text-lg font-semibold mb-4">Payment Details</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Status:</span>
+                                            <span class="{% if booking.is_paid %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %} px-2 py-1 rounded-full text-sm">
+                                                {{ booking.is_paid|yesno:"Paid,Pending" }}
+                                            </span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-600">Total Amount:</span>
+                                            <span class="font-medium text-lg" data-total-amount="{{ booking.total_amount }}">
+                                                ���{{ booking.total_amount|floatformat:2 }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {% if not booking.is_paid %}
+                                    <div class="mt-6">
+                                        <h4 class="font-medium mb-3">Payment Method</h4>
+                                        <div class="space-y-3">
+                                            <div>
+                                                <label class="inline-flex items-center">
+                                                    <input type="radio" name="payment_method" value="cash" class="form-radio" checked>
+                                                    <span class="ml-2">Cash</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="inline-flex items-center">
+                                                    <input type="radio" name="payment_method" value="gcash" class="form-radio">
+                                                    <span class="ml-2">GCash</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Payment Actions Container -->
+                    <div id="payment-actions-container" class="space-y-4">
+                        <form id="payment-form" method="POST" action="{% url 'process_payment_htmx' %}" class="space-y-6">
+                            {% csrf_token %}
+                            <input type="hidden" name="booking_reference" id="booking-reference-hidden">
+                            
+                            <!-- Cash payment details section -->
+                            <div id="cash-payment-details" class="bg-gray-50 p-4 rounded-lg hidden">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                                    <i class="fas fa-money-bill-wave mr-2 text-green-600"></i>
+                                    Cash Payment Details
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="cash-amount" class="block text-sm font-medium text-gray-700">Cash Received</label>
+                                        <div class="mt-1 relative rounded-md shadow-sm">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span class="text-gray-500 sm:text-sm">$</span>
+                                            </div>
+                                            <input type="number" 
+                                                   id="cash-amount" 
+                                                   name="cash_amount" 
+                                                   step="0.01" 
+                                                   min="0" 
+                                                   class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
+                                                   placeholder="0.00">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="change-amount" class="block text-sm font-medium text-gray-700">Change Due</label>
+                                        <div id="change-container">
+                                            <div class="mt-1 relative rounded-md shadow-sm">
+                                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span class="text-gray-500 sm:text-sm">$</span>
+                                                </div>
+                                                <input type="text" 
+                                                       id="change-amount" 
+                                                       name="change_amount"
+                                                       value="0.00"
+                                                       readonly 
+                                                       class="bg-gray-100 focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipt Modal -->
+            <div id="receipt-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                    <div class="p-4 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold">Payment Receipt</h3>
+                            <button id="close-receipt" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="receipt-content" class="p-6">
+                        <!-- Receipt content will be populated here -->
+                    </div>
+                    <div class="p-4 border-t bg-gray-50 flex justify-end space-x-3">
+                        <button id="print-receipt" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            <i class="fas fa-print mr-2"></i>Print
+                        </button>
+                        <button id="close-receipt-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.6"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+  <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          const paymentForm = document.getElementById('payment-form');
+          const printTicketBtn = document.getElementById('print-ticket-btn');
+          const bookingReferenceHidden = document.getElementById('booking-reference-hidden');
+          const paymentReference = document.getElementById('payment-reference');
+          const cashPaymentDetails = document.getElementById('cash-payment-details');
+          const cashAmount = document.getElementById('cash-amount');
+          const changeAmount = document.getElementById('change-amount');
+          const receiptModal = document.getElementById('receipt-modal');
+          const receiptContent = document.getElementById('receipt-content');
+          const closeReceiptBtns = document.querySelectorAll('#close-receipt, #close-receipt-btn');
+          const printReceiptBtn = document.getElementById('print-receipt');
+        
+          let totalAmount = 0;
+
+          // Initialize QR scanner
+          initializeQRScanner();
+
+          // Handle cash amount input - This is the fixed part for automatic calculation
+          if (cashAmount) {
+              cashAmount.addEventListener('input', function() {
+                  const cashReceived = parseFloat(this.value) || 0;
+                  const change = cashReceived - totalAmount;
+                
+                  // Update change amount field
+                  if (changeAmount) {
+                      changeAmount.value = change >= 0 ? change.toFixed(2) : '0.00';
+                    
+                      // Visual indicator for insufficient cash
+                      if (change < 0) {
+                          cashAmount.classList.add('border-red-500');
+                          changeAmount.classList.add('border-red-500');
+                      } else {
+                          cashAmount.classList.remove('border-red-500');
+                          changeAmount.classList.remove('border-red-500');
+                      }
+                  }
+                
+                  console.log(`Cash: ${cashReceived}, Total: ${totalAmount}, Change: ${change}`);
+              });
+          }
+
+          // Update total amount when booking details are loaded
+          document.addEventListener('htmx:afterSwap', function(event) {
+              if (event.detail.target.id === 'booking-details-container') {
+                  // Find the total amount in the booking details
+                  const totalElement = document.querySelector('[data-total-amount]');
+                  if (totalElement) {
+                      totalAmount = parseFloat(totalElement.dataset.totalAmount) || 0;
+                      console.log('Updated total amount:', totalAmount);
+                    
+                      // Reset cash amount and change fields
+                      if (cashAmount) {
+                          cashAmount.value = '';
+                          changeAmount.value = '';
+                      }
+                    
+                      // Show appropriate payment section
+                      const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+                      if (paymentMethod && paymentMethod.value === 'cash') {
+                          cashPaymentDetails.classList.remove('hidden');
+                      }
+                  }
+              }
+          });
+
+          // Keep the rest of your existing functions
+          function initializeQRScanner() {
+              const html5QrcodeScanner = new Html5QrcodeScanner(
+                  "qr-reader",
+                  { fps: 10, qrbox: { width: 250, height: 250 } }
+              );
+                function onScanSuccess(decodedText, decodedResult) {
+                    try {
+                        let reference = decodedText.trim();
+                    
+                        if (reference.includes('http')) {
+                            reference = new URL(reference).pathname.split('/').pop();
+                        }
+                    
+                        reference = reference.replace(/[^a-zA-Z0-9-_]/g, '');
+                    
+                        if (paymentReference && reference) {
+                            paymentReference.value = reference;
+                            bookingReferenceHidden.value = reference;
+                            
+                            // Trigger HTMX request to load booking details
+                            htmx.trigger(paymentReference, 'keyup');
+                            
+                            // Clear scanner after successful scan
+                            html5QrcodeScanner.clear();
+                            
+                            // After loading booking details, check payment status
+                            setTimeout(() => {
+                                const paidBadge = document.querySelector('.bg-green-100.text-green-800');
+                                const bookingType = document.querySelector('[data-booking-type]');
+                                
+                                if (paidBadge && paidBadge.textContent.trim() === 'Paid') {
+                                    document.getElementById('qr-reader-results').innerHTML = 
+                                        '<div class="bg-yellow-100 text-yellow-800 p-3 rounded-lg mt-3 text-center">' +
+                                        '<i class="fas fa-exclamation-circle mr-2"></i>' +
+                                        'This transaction has already been processed' +
+                                        '</div>';
+                                }
+                                
+                                // Show appropriate payment fields based on booking type
+                                const cashPaymentDetails = document.getElementById('cash-payment-details');
+                                if (cashPaymentDetails) {
+                                    const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+                                    if (paymentMethod && paymentMethod.value === 'cash') {
+                                        cashPaymentDetails.classList.remove('hidden');
+                                    }
+                                }
+                            }, 500);
+                        } else {
+                            throw new Error('Invalid QR code format');
+                        }
+                    } catch (error) {
+                        console.error('Error processing QR code:', error);
+                        document.getElementById('camera-error').textContent = 'Invalid QR code format';
+                        document.getElementById('camera-error').classList.remove('hidden');
+                    }
+                }
+              function onScanError(error) {
+                  console.warn(`QR scan error: ${error}`);
+              }
+
+              html5QrcodeScanner.render(onScanSuccess, onScanError);
+          }
+
+          // Handle payment method change
+          document.body.addEventListener('change', function(e) {
+              if (e.target.name === 'payment_method') {
+                  if (e.target.value === 'cash') {
+                      cashPaymentDetails.classList.remove('hidden');
+                  } else {
+                      cashPaymentDetails.classList.add('hidden');
+                  }
+              }
+          });
+            // Generate receipt with payment details
+            function generateReceipt(data) {
+                const cashReceived = parseFloat(cashAmount.value) || 0;
+                // Ensure total amount is consistent
+                const total = data.total_amount || totalAmount;
+                const change = cashReceived - total;
+            
+            const today = new Date();
+            const dateString = today.toLocaleDateString();
+            const timeString = today.toLocaleTimeString();
+            
+            // Create receipt HTML
+            let receiptHTML = `
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-bold">Payment Receipt</h2>
+                    <p class="text-sm text-gray-600">${dateString} ${timeString}</p>
+                </div>
+                <div class="border-t border-b py-3 my-3">
+                    <p><strong>Booking Reference:</strong> ${data.booking_reference}</p>
+                    <p><strong>Customer:</strong> ${data.customer_name || 'N/A'}</p>
+                </div>
+                <div class="my-3">
+                    <p><strong>Payment Method:</strong> Cash</p>
+                    <p><strong>Amount Paid:</strong> ₱${total.toFixed(2)}</p>
+                    <p><strong>Cash Received:</strong> ₱${cashReceived.toFixed(2)}</p>
+                    <p><strong>Change:</strong> ₱${change.toFixed(2)}</p>
+                </div>
+                <div class="border-t pt-3 text-center">
+                    <p class="text-sm">Thank you for your payment!</p>
+                </div>
+            `;
+            
+            receiptContent.innerHTML = receiptHTML;
+            receiptModal.classList.remove('hidden');
+            }
+          // Handle receipt modal close buttons
+          closeReceiptBtns.forEach(btn => {
+              btn.addEventListener('click', function() {
+                  receiptModal.classList.add('hidden');
+              });
+          });
+
+          // Handle print receipt button
+          printReceiptBtn.addEventListener('click', function() {
+              const printWindow = window.open('', '_blank');
+              printWindow.document.write(`
+                  <html>
+                  <head>
+                      <title>Payment Receipt</title>
+                      <style>
+                          body { font-family: Arial, sans-serif; padding: 20px; }
+                          .receipt { max-width: 300px; margin: 0 auto; }
+                          .header { text-align: center; margin-bottom: 20px; }
+                          .divider { border-top: 1px solid #ddd; margin: 10px 0; }
+                          .footer { text-align: center; margin-top: 20px; font-size: 12px; }
+                      </style>
+                  </head>
+                  <body onload="window.print(); window.close();">
+                      <div class="receipt">
+                          ${receiptContent.innerHTML}
+                      </div>
+                  </body>
+                  </html>
+              `);
+              printWindow.document.close();
+          });
+
+          // Handle manual reference input
+          paymentReference.addEventListener('input', function() {
+              bookingReferenceHidden.value = this.value;
+          });
+      });
+  </script>
+{% endblock %}

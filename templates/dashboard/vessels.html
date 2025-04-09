@@ -1,0 +1,408 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Vessels{% endblock %}
+{% block header %}Vessel Management{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow">
+    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+        <h2 class="text-xl font-semibold">Vessels List</h2>
+        <div>
+            <a href="{% url 'schedules' %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 mr-2">
+                <i class="fas fa-calendar-alt mr-2"></i> Go to Schedules
+            </a>
+            <button id="openAddVesselModal" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i> Add Vessel
+            </button>
+        </div>
+    </div>
+    <div class="p-6">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Passenger Capacity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cargo Capacity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for vessel in vessels %}
+                    <tr>
+                        <td class="px-6 py-4">{{ vessel.name }}</td>
+                        <td class="px-6 py-4">{{ vessel.capacity_passengers }}</td>
+                        <td class="px-6 py-4">{{ vessel.capacity_cargo }} tons</td>
+                        <td class="px-6 py-4">
+                            {% if vessel.active %}
+                            <span class="px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full">Active</span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <button onclick="openEditVesselModal('{{ vessel.id }}', '{{ vessel.name }}', {{ vessel.capacity_passengers }}, {{ vessel.capacity_cargo }}, {{ vessel.active|yesno:'true,false' }})" 
+                                    class="text-blue-600 hover:text-blue-800 mr-3">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteVessel('{{ vessel.id }}')"
+                                    class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Vessel Modal -->
+<div id="addVesselModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 transform transition-all">
+        <!-- Modal Header -->
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl">
+            <h3 class="text-2xl font-bold text-white">Add New Vessel</h3>
+            <button id="closeAddVesselModal" class="text-white hover:text-gray-200 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="addVesselForm" method="post" action="{% url 'add_vessel' %}" class="p-6">
+            {% csrf_token %}
+            <div class="space-y-6">
+                <!-- Vessel Name -->
+                <div class="space-y-2">
+                    <label for="vessel_name" class="block text-sm font-semibold text-gray-700">Vessel Name</label>
+                    <div class="relative">
+                        <input type="text" id="vessel_name" name="name" required
+                            class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            placeholder="Enter vessel name">
+                        <i class="fas fa-ship absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Passenger Capacity -->
+                <div class="space-y-2">
+                    <label for="capacity_passengers" class="block text-sm font-semibold text-gray-700">
+                        Passenger Capacity
+                        <span class="text-gray-500 text-xs">(Max: 1500)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" 
+                               id="capacity_passengers" 
+                               name="capacity_passengers" 
+                               min="1" 
+                               max="1500" 
+                               required
+                               class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                               placeholder="Enter passenger capacity">
+                        <i class="fas fa-users absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Cargo Capacity -->
+                <div class="space-y-2">
+                    <label for="capacity_cargo" class="block text-sm font-semibold text-gray-700">
+                        Cargo Capacity (tons)
+                        <span class="text-gray-500 text-xs">(Max: 1500)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" 
+                               id="capacity_cargo" 
+                               name="capacity_cargo" 
+                               min="0" 
+                               max="1500" 
+                               step="0.1" 
+                               required
+                               class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                               placeholder="Enter cargo capacity">
+                        <i class="fas fa-box absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Active Status -->
+                <div class="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+                    <input type="checkbox" 
+                           id="active" 
+                           name="active" 
+                           checked
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-all">
+                    <label for="active" class="text-sm font-medium text-gray-700">Active Status</label>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-8 flex justify-end space-x-3">
+                <button type="button" 
+                        id="cancelAddVessel" 
+                        class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    Add Vessel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Vessel Modal -->
+<div id="editVesselModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-blue-600 to-blue-800 rounded-t-xl">
+            <h3 class="text-2xl font-bold text-white">Edit Vessel</h3>
+            <button id="closeEditVesselModal" class="text-white hover:text-gray-200 transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="editVesselForm" method="post" class="p-6">
+            {% csrf_token %}
+            <input type="hidden" id="edit_vessel_id" name="vessel_id">
+            <div class="space-y-6">
+                <!-- Vessel Name -->
+                <div class="space-y-2">
+                    <label for="edit_vessel_name" class="block text-sm font-semibold text-gray-700">Vessel Name</label>
+                    <div class="relative">
+                        <input type="text" 
+                               id="edit_vessel_name" 
+                               name="name" 
+                               required
+                               class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                               placeholder="Enter vessel name">
+                        <i class="fas fa-ship absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Passenger Capacity -->
+                <div class="form-group relative group">
+                    <label for="edit_capacity_passengers" class="block text-sm font-semibold text-gray-700">
+                        Passenger Capacity
+                        <span class="text-gray-500 text-xs">(Max: 1500)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" 
+                               id="edit_capacity_passengers" 
+                               name="capacity_passengers" 
+                               min="1" 
+                               max="1500" 
+                               required
+                               class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                               placeholder="Enter passenger capacity">
+                        <i class="fas fa-users absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <div class="tooltip opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-300 absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm py-2 px-4 rounded-lg shadow-lg z-10 w-64 text-center">
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                            Passenger capacity cannot be modified once set
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cargo Capacity -->
+                <div class="form-group relative group">
+                    <label for="edit_capacity_cargo" class="block text-sm font-semibold text-gray-700">
+                        Cargo Capacity (tons)
+                        <span class="text-gray-500 text-xs">(Max: 1500)</span>
+                    </label>
+                    <div class="relative">
+                        <input type="number" 
+                               id="edit_capacity_cargo" 
+                               name="capacity_cargo" 
+                               min="0" 
+                               max="1500" 
+                               step="0.1" 
+                               required
+                               class="w-full px-3 py-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                               placeholder="Enter cargo capacity">
+                        <i class="fas fa-box absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <div class="tooltip opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-300 absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-sm py-2 px-4 rounded-lg shadow-lg z-10 w-64 text-center">
+                            <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900"></div>
+                            Cargo capacity cannot be modified once set
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Status -->
+                <div class="flex items-center space-x-3 bg-gray-50 p-3 rounded-lg">
+                    <input type="checkbox" 
+                           id="edit_active" 
+                           name="active"
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-all">
+                    <label for="edit_active" class="text-sm font-medium text-gray-700">Active Status</label>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="mt-8 flex justify-end space-x-3">
+                <button type="button" 
+                        id="cancelEditVessel" 
+                        class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add validation for capacity inputs (both add and edit forms)
+        const capacityInputs = [
+            'capacity_passengers',
+            'capacity_cargo',
+            'edit_capacity_passengers',
+            'edit_capacity_cargo'
+        ].map(id => document.getElementById(id));
+
+        function validateCapacity(input, max) {
+            if (parseFloat(input.value) > max) {
+                alert(`Maximum capacity cannot exceed ${max}`);
+                input.value = max;
+            }
+        }
+
+        capacityInputs.forEach(input => {
+            if (input) {  // Check if input exists
+                input.addEventListener('change', function() {
+                    validateCapacity(this, 1500);
+                });
+            }
+        });
+
+        // Add Vessel Modal
+        const openModalBtn = document.getElementById('openAddVesselModal');
+        const closeModalBtn = document.getElementById('closeAddVesselModal');
+        const cancelBtn = document.getElementById('cancelAddVessel');
+        const addModal = document.getElementById('addVesselModal');
+        const addForm = document.getElementById('addVesselForm');
+
+        // Edit Vessel Modal
+        const editModal = document.getElementById('editVesselModal');
+        const closeEditModalBtn = document.getElementById('closeEditVesselModal');
+        const cancelEditBtn = document.getElementById('cancelEditVessel');
+        const editForm = document.getElementById('editVesselForm');
+
+        // Add Vessel Modal Functions
+        openModalBtn.addEventListener('click', function() {
+            addModal.classList.remove('hidden');
+        });
+
+        function closeAddModal() {
+            addModal.classList.add('hidden');
+            addForm.reset();
+        }
+
+        closeModalBtn.addEventListener('click', closeAddModal);
+        cancelBtn.addEventListener('click', closeAddModal);
+
+        // Edit Vessel Modal Functions
+        function closeEditModal() {
+            editModal.classList.add('hidden');
+            editForm.reset();
+        }
+
+        closeEditModalBtn.addEventListener('click', closeEditModal);
+        cancelEditBtn.addEventListener('click', closeEditModal);
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(e) {
+            if (e.target === addModal) closeAddModal();
+            if (e.target === editModal) closeEditModal();
+        });
+
+        // Edit Vessel Function
+        window.openEditVesselModal = function(id, name, passengers, cargo, active) {
+            document.getElementById('edit_vessel_id').value = id;
+            document.getElementById('edit_vessel_name').value = name;
+            
+            // Get the passenger and cargo capacity inputs
+            const passengerInput = document.getElementById('edit_capacity_passengers');
+            const cargoInput = document.getElementById('edit_capacity_cargo');
+            
+            // Set values
+            passengerInput.value = passengers;
+            cargoInput.value = cargo;
+            
+            // If the vessel already has capacity values, make the inputs readonly
+            if (passengers > 0) {
+                passengerInput.setAttribute('readonly', true);
+                passengerInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+            } else {
+                passengerInput.removeAttribute('readonly');
+                passengerInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+            }
+            
+            if (cargo > 0) {
+                cargoInput.setAttribute('readonly', true);
+                cargoInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+            } else {
+                cargoInput.removeAttribute('readonly');
+                cargoInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+            }
+            
+            document.getElementById('edit_active').checked = active === 'true';
+            
+            editForm.action = `/vessels/${id}/edit/`;
+            editModal.classList.remove('hidden');
+        };
+
+        // Add validation for new vessel form
+        const addForm_passengerInput = document.getElementById('capacity_passengers');
+        const addForm_cargoInput = document.getElementById('capacity_cargo');
+
+        // Function to check if capacity already exists
+        function checkExistingCapacity(input, capacityType) {
+            const value = parseFloat(input.value);
+            if (value > 0) {
+                input.setAttribute('readonly', true);
+                input.classList.add('bg-gray-100', 'cursor-not-allowed');
+                const helpText = document.createElement('p');
+                helpText.className = 'mt-1 text-sm text-gray-500';
+                helpText.textContent = `${capacityType} capacity cannot be modified once set`;
+                input.parentNode.appendChild(helpText);
+            }
+        }
+
+        // Check capacities when form loads
+        if (addForm_passengerInput) {
+            checkExistingCapacity(addForm_passengerInput, 'Passenger');
+        }
+        if (addForm_cargoInput) {
+            checkExistingCapacity(addForm_cargoInput, 'Cargo');
+        }
+
+        // Delete Vessel Function
+        window.deleteVessel = function(vesselId) {
+            if (confirm('Are you sure you want to delete this vessel?')) {
+                fetch(`/vessels/${vesselId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Error deleting vessel');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting vessel');
+                });
+            }
+        };
+    });
+</script>
+{% endblock %}
+{% endblock %}

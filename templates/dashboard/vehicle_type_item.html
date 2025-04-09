@@ -1,0 +1,89 @@
+<!-- Vehicle Types List Container -->
+<div id="vehicle-types-list" class="space-y-4">
+    {% for vehicle_type in vehicle_types %}
+    <div id="vehicle-type-{{ vehicle_type.id }}" class="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:shadow transition-shadow duration-200">
+        <div class="flex-1">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-100 rounded-full p-2">
+                    <i class="fas fa-truck text-blue-600"></i>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-900">{{ vehicle_type.name }}</h4>
+                    <div class="mt-1 text-sm text-gray-600 space-x-4">
+                        <span><i class="fas fa-users mr-1"></i>Max Occupants: {{ vehicle_type.max_occupants }}</span>
+                        <span><i class="fas fa-weight mr-1"></i>Max Cargo: {{ vehicle_type.max_cargo_weight }} tons</span>
+                        <span><i class="fas fa-money-bill mr-1"></i>Base Fare: ₱{{ vehicle_type.base_fare|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="editVehicleType('{{ vehicle_type.id }}', '{{ vehicle_type.name }}', '{{ vehicle_type.max_occupants }}', '{{ vehicle_type.max_cargo_weight }}', '{{ vehicle_type.base_fare }}')"
+                    class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors">
+                <i class="fas fa-edit"></i>
+            </button>
+            <form hx-delete="{% url 'delete_vehicle_type' vehicle_type.id %}"
+                  hx-target="#vehicle-type-{{ vehicle_type.id }}"
+                  hx-swap="outerHTML"
+                  hx-confirm="Are you sure you want to delete this vehicle type?"
+                  class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50 transition-colors">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-8 bg-white border rounded-lg">
+        <div class="text-gray-400 mb-3">
+            <i class="fas fa-truck text-5xl"></i>
+        </div>
+        <p class="text-gray-500">No vehicle types have been added yet.</p>
+        <p class="text-sm text-gray-400 mt-1">Use the form above to add your first vehicle type.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Edit Form Template (Initially Hidden) -->
+<template id="edit-form-template">
+    <form hx-put="/vehicle-types/{id}/update/"
+          hx-target="#vehicle-type-{id}"
+          hx-swap="outerHTML"
+          class="p-4 bg-white border rounded-lg shadow-sm">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Name</label>
+                <input type="text" name="name" required id="edit-name-{id}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Max Occupants</label>
+                <input type="number" name="max_occupants" required min="1" id="edit-occupants-{id}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Max Cargo (tons)</label>
+                <input type="number" name="max_cargo_weight" required min="0" step="0.1" id="edit-cargo-{id}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Base Fare (₱)</label>
+                <input type="number" name="base_fare" required min="0" step="0.01" id="edit-fare-{id}"
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+        </div>
+        <div class="flex justify-end space-x-2 mt-4">
+            <button type="button" onclick="cancelEdit('{id}')"
+                    class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                Cancel
+            </button>
+            <button type="submit"
+                    class="px-4 py-2 text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</template>

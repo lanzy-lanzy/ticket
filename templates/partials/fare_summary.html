@@ -1,0 +1,14 @@
+<div class="space-y-2">
+    <div class="flex justify-between">
+        <span>Adult Fare</span>
+        <span class="font-semibold">₱{{ adult_total|floatformat:2 }}</span>
+    </div>
+    <div class="flex justify-between">
+        <span>Child Fare</span>
+        <span class="font-semibold">₱{{ child_total|floatformat:2 }}</span>
+    </div>
+    <div class="border-t pt-2 flex justify-between font-bold">
+        <span>Total Amount</span>
+        <span class="text-blue-600">₱{{ total|floatformat:2 }}</span>
+    </div>
+</div>

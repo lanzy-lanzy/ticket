@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid bg-light min-vh-100 d-flex flex-column">
+    <div class="row flex-grow-1">
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+            <div class="card shadow-lg border-0 rounded-lg mt-5 w-100" style="max-width: 500px;">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="text-center font-weight-light my-4">
+                        <i class="fas fa-qrcode me-2"></i>Scan QR Code
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div id="scanner-container" class="mb-3 rounded overflow-hidden" style="position: relative; width: 100%; height: 300px;">
+                        <video id="scanner-video" style="width: 100%; height: 100%; object-fit: cover;"></video>
+                        <canvas id="scanner-canvas" style="position: absolute; top: 0; left: 0;"></canvas>
+                    </div>
+                    <div class="text-center mt-3">
+                        <p class="lead">Align the QR code within the frame to process the payment.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+            <div class="p-5">
+                <h2 class="display-4 mb-4">How It Works</h2>
+                <ol class="list-group list-group-numbered shadow-sm">
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Scan QR Code</div>
+                            Point your device's camera at the transaction QR code.
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Review Details</div>
+                            Verify the transaction information in the pop-up modal.
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Confirm Payment</div>
+                            Click 'Print Receipt' to finalize the transaction.
+                        </div>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="transactionModalLabel">Transaction Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-items-list"></div>
+                <h4 class="mt-3">Total: ₱<span id="modal-total-amount"></span></h4>
+                <div class="mt-3">
+                    <label for="tendered-amount" class="form-label">Tendered Amount:</label>
+                    <input type="number" class="form-control" id="tendered-amount" step="0.01" min="0">
+                </div>
+                <div class="mt-2">
+                    <h5>Change: ₱<span id="change-amount">0.00</span></h5>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="print-receipt">
+                    <i class="fas fa-print me-2"></i>Print Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.3.1/dist/jsQR.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('scanner-video');
+    const canvas = document.getElementById('scanner-canvas');
+    const ctx = canvas.getContext('2d');
+    let scanning = false;
+
+    function initializeCamera() {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(function(stream) {
+                video.srcObject = stream;
+                video.setAttribute("playsinline", true);
+                video.play();
+                requestAnimationFrame(tick);
+            })
+            .catch(function(error) {
+                console.error("Unable to access the camera: ", error);
+                alert("Unable to access the camera. Please check your camera permissions.");
+            });
+    }
+
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+
+            if (code && !scanning) {
+                scanning = true;
+                console.log("QR Code detected:", code.data);
+                showTransactionDetails(code.data);
+            }
+        }
+        if (!scanning) {
+            requestAnimationFrame(tick);
+        }
+    }
+
+    function showTransactionDetails(transactionId) {
+        fetch(`{% url 'get_transaction_details' %}?transaction_id=${transactionId}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log("Transaction details:", data);
+                displayTransactionDetails(data);
+                setupPrintFunctionality(data);
+                var myModal = new bootstrap.Modal(document.getElementById('transactionModal'));
+                myModal.show();
+            })
+            .catch(error => {
+                console.log("Successfully fetched transaction details:", data);
+                console.log("Successfully fetched transaction details:", data);
+            });
+    }
+
+    function displayTransactionDetails(data) {
+        let itemsHtml = '<table class="table"><thead><tr><th>Product</th><th>Price</th><th>Quantity</th><th>Subtotal</th></tr></thead><tbody>';
+        data.items.forEach(item => {
+            const subtotal = parseFloat(item.price) * item.quantity;
+            itemsHtml += `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.quantity}</td><td>${subtotal.toFixed(2)}</td></tr>`;
+        });
+        itemsHtml += '</tbody></table>';
+        document.getElementById('modal-items-list').innerHTML = itemsHtml;
+        document.getElementById('modal-total-amount').textContent = data.total;
+    }
+
+    function setupPrintFunctionality(data) {
+        const tenderedAmountInput = document.getElementById('tendered-amount');
+        const changeAmountSpan = document.getElementById('change-amount');
+        const totalAmount = parseFloat(data.total);
+
+        tenderedAmountInput.addEventListener('input', function() {
+            const tenderedAmount = parseFloat(this.value) || 0;
+            const change = tenderedAmount - totalAmount;
+            changeAmountSpan.textContent = change >= 0 ? change.toFixed(2) : '0.00';
+        });
+
+        document.getElementById('print-receipt').addEventListener('click', function() {
+            const tenderedAmount = parseFloat(tenderedAmountInput.value) || 0;
+            if (tenderedAmount < totalAmount) {
+                alert('Tendered amount is less than the total amount. Please enter a valid amount.');
+                return;
+            }
+
+            if (!data.transaction_id) {
+                console.error('Transaction ID is missing:', data);
+                alert('Error: Transaction ID is missing. Please try scanning the QR code again.');
+                return;
+            }
+
+            fetch('{% url "process_payment" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({transaction_id: data.transaction_id})
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    printReceipt(data);
+                    updateTransactionStatus(data.transaction_id, 'Completed');
+                    resetScanner();
+                    // Add this line to refresh the transaction history
+                    window.opener.location.reload();
+                } else {
+                    alert('Failed to complete the transaction: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Transaction processed successfully.');
+            });
+        });
+
+        // ... rest of the function ...
+    }
+
+    function printReceipt(data) {
+        const tenderedAmount = parseFloat(document.getElementById('tendered-amount').value) || 0;
+        const change = tenderedAmount - parseFloat(data.total);
+
+        let printWindow = window.open('', '', 'height=400,width=300');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Receipt</title>
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 10px; }
+                    h1 { font-size: 14px; }
+                    p { margin: 0; }
+                    table { width: 100%; margin-bottom: 10px; }
+                    th, td { font-size: 10px; padding: 2px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .total { font-weight: bold; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <h1 style="text-align: center;">Receipt</h1>
+                <p style="text-align: center;">Date: ${new Date().toLocaleString()}</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.items.map(item => `
+                            <tr>
+                                <td>${item.name}</td>
+                                <td>${item.quantity}</td>
+                                <td>${(parseFloat(item.price) * item.quantity).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <p class="total">Total: ₱${data.total}</p>
+                <p>Tendered: ₱${tenderedAmount.toFixed(2)}</p>
+                <p>Change: ₱${change.toFixed(2)}</p>
+                <p style="text-align: center;">Thank you for your purchase!</p>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }    
+    function updateTransactionStatus(transactionId, status) {
+        const statusElement = document.querySelector(`.transaction-status[data-transaction-id="${transactionId}"]`);
+        if (statusElement) {
+            statusElement.textContent = status;
+            statusElement.className = `transaction-status badge ${status === 'Completed' ? 'bg-success' : 'bg-warning text-dark'}`;
+        }
+    }
+
+    function resetScanner() {
+        scanning = false;
+        requestAnimationFrame(tick);
+    }
+
+    // Initialize the camera when the page loads
+    initializeCamera();
+});
+</script>
+{% endblock %}
