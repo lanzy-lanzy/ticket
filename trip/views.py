@@ -520,11 +520,30 @@ def process_payment_htmx(request):
             logger.error(f"Email sending error: {str(email_error)}", exc_info=True)
             # Continue processing even if email fails
 
-        return HttpResponseRedirect(reverse('print_ticket', args=[booking_reference]))
+        # Return JSON response for AJAX request
+        if 'X-Requested-With' in request.headers:
+            return JsonResponse({
+                'success': True,
+                'booking_reference': booking_reference,
+                'customer_name': booking.full_name,
+                'total_amount': float(total_amount),
+                'payment_reference': payment.payment_reference,
+                'message': 'Payment processed successfully'
+            })
+        else:
+            # For non-AJAX requests, redirect to print ticket page
+            return HttpResponseRedirect(reverse('print_ticket', args=[booking_reference]))
 
     except Exception as e:
         logger.error(f"Payment processing error: {str(e)}", exc_info=True)
-        return HttpResponseBadRequest(f"Error processing payment: {str(e)}")
+        # Return JSON error for AJAX request
+        if 'X-Requested-With' in request.headers:
+            return JsonResponse({
+                'success': False,
+                'error': f"Error processing payment: {str(e)}"
+            }, status=400)
+        else:
+            return HttpResponseBadRequest(f"Error processing payment: {str(e)}")
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse
 from django.template.response import TemplateResponse
@@ -791,6 +810,37 @@ def payment_list(request):
     }
 
     return render(request, 'dashboard/payments.html', context)
+
+@login_required
+@staff_member_required
+def process_specific_payment(request, booking_reference):
+    """View for processing payment for a specific booking"""
+    try:
+        booking = get_object_or_404(Booking, booking_reference=booking_reference)
+
+        # Calculate payment amount based on booking type
+        if booking.booking_type == 'passenger':
+            adult_total = booking.adult_passengers * booking.schedule.adult_fare
+            child_total = booking.child_passengers * booking.schedule.child_fare
+            total_amount = adult_total + child_total
+
+            # Store these values for display in the template
+            booking.adult_fare_total = adult_total
+            booking.child_fare_total = child_total
+        elif booking.booking_type == 'vehicle' and booking.vehicle_type:
+            total_amount = booking.vehicle_type.base_fare
+        else:
+            total_amount = Decimal('0.00')
+
+        context = {
+            'booking': booking,
+            'total_amount': total_amount,
+        }
+
+        return render(request, 'dashboard/process_payment.html', context)
+    except Exception as e:
+        messages.error(request, f"Error processing payment: {str(e)}")
+        return redirect('payments')
 
 
 

@@ -28,6 +28,7 @@ urlpatterns = [
     path('dashboard/bookings/', views.booking_list, name='booking_list'),
     path('dashboard/bookings/create/', views.booking_create, name='booking_create'),
     path('dashboard/payments/', views.payment_list, name='payments'),
+    path('dashboard/payments/process/<str:booking_reference>/', views.process_specific_payment, name='process_specific_payment'),
     path('dashboard/reports/', views.reports_view, name='reports'),
     path('dashboard/reports/export/', views.export_report, name='export_report'),
     path('dashboard/ratings/', views.ratings_dashboard, name='ratings_dashboard'),
@@ -94,9 +95,9 @@ urlpatterns = [
     path('dashboard/routes/<int:pk>/', views.get_route, name='get_route'),
     path('dashboard/routes/<int:pk>/edit/', views.edit_route, name='edit_route'),
     path('dashboard/routes/<int:pk>/delete/', views.delete_route, name='delete_route'),
- 
+
     path('dashboard/schedules/<int:pk>/delete/', views.schedule_delete, name='schedule_delete'),
-   
+
     path('dashboard/schedules/<int:schedule_id>/get/', views.get_schedule, name='get_schedule'),
     path('ratings/submit/', views.submit_rating, name='submit_rating'),
     path('ratings/<int:rating_id>/details/', views.rating_details, name='rating_details'),

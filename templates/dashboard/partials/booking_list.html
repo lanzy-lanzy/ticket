@@ -71,7 +71,7 @@
 
                         {% if not booking.is_paid %}
                         <!-- Payment Button -->
-                        <a href="{% url 'payments' %}"
+                        <a href="{% url 'process_specific_payment' booking.booking_reference %}"
                            class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200">
                             <i class="fas fa-money-bill-wave mr-2"></i>
                             Process Payment
