@@ -47,9 +47,9 @@
                             </h3>
                             <div class="mb-4">
                                 <label for="payment-reference" class="block text-sm font-medium text-gray-700">Payment Reference</label>
-                                <input type="text" 
-                                       id="payment-reference" 
-                                       name="payment-reference" 
+                                <input type="text"
+                                       id="payment-reference"
+                                       name="payment-reference"
                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                        hx-get="{% url 'booking_details_html' %}"
                                        hx-trigger="keyup changed delay:500ms"
@@ -126,7 +126,7 @@
                                         <div class="flex justify-between">
                                             <span class="text-gray-600">Total Amount:</span>
                                             <span class="font-medium text-lg" data-total-amount="{{ booking.total_amount }}">
-                                                ���{{ booking.total_amount|floatformat:2 }}
+                                                ₱{{ booking.total_amount|floatformat:2 }}
                                             </span>
                                         </div>
                                     </div>
@@ -161,7 +161,10 @@
                         <form id="payment-form" method="POST" action="{% url 'process_payment_htmx' %}" class="space-y-6">
                             {% csrf_token %}
                             <input type="hidden" name="booking_reference" id="booking-reference-hidden">
-                            
+                            <input type="hidden" name="total_amount" id="total-amount-hidden">
+                            <input type="hidden" name="amount_received" id="amount-received-hidden">
+                            <input type="hidden" name="payment_method" value="cash">
+
                             <!-- Cash payment details section -->
                             <div id="cash-payment-details" class="bg-gray-50 p-4 rounded-lg hidden">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-3">
@@ -173,13 +176,13 @@
                                         <label for="cash-amount" class="block text-sm font-medium text-gray-700">Cash Received</label>
                                         <div class="mt-1 relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <span class="text-gray-500 sm:text-sm">$</span>
+                                                <span class="text-gray-500 sm:text-sm">₱</span>
                                             </div>
-                                            <input type="number" 
-                                                   id="cash-amount" 
-                                                   name="cash_amount" 
-                                                   step="0.01" 
-                                                   min="0" 
+                                            <input type="number"
+                                                   id="cash-amount"
+                                                   name="cash_amount"
+                                                   step="0.01"
+                                                   min="0"
                                                    class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
                                                    placeholder="0.00">
                                         </div>
@@ -189,17 +192,25 @@
                                         <div id="change-container">
                                             <div class="mt-1 relative rounded-md shadow-sm">
                                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <span class="text-gray-500 sm:text-sm">$</span>
+                                                    <span class="text-gray-500 sm:text-sm">₱</span>
                                                 </div>
-                                                <input type="text" 
-                                                       id="change-amount" 
+                                                <input type="text"
+                                                       id="change-amount"
                                                        name="change_amount"
                                                        value="0.00"
-                                                       readonly 
+                                                       readonly
                                                        class="bg-gray-100 focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md">
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                <!-- Submit button -->
+                                <div class="mt-4">
+                                    <button type="submit"
+                                            id="process-payment-btn"
+                                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                        <i class="fas fa-check-circle mr-2"></i>Process Payment
+                                    </button>
                                 </div>
                             </div>
                         </form>
@@ -252,7 +263,7 @@
           const receiptContent = document.getElementById('receipt-content');
           const closeReceiptBtns = document.querySelectorAll('#close-receipt, #close-receipt-btn');
           const printReceiptBtn = document.getElementById('print-receipt');
-        
+
           let totalAmount = 0;
 
           // Initialize QR scanner
@@ -263,11 +274,11 @@
               cashAmount.addEventListener('input', function() {
                   const cashReceived = parseFloat(this.value) || 0;
                   const change = cashReceived - totalAmount;
-                
+
                   // Update change amount field
                   if (changeAmount) {
                       changeAmount.value = change >= 0 ? change.toFixed(2) : '0.00';
-                    
+
                       // Visual indicator for insufficient cash
                       if (change < 0) {
                           cashAmount.classList.add('border-red-500');
@@ -277,7 +288,7 @@
                           changeAmount.classList.remove('border-red-500');
                       }
                   }
-                
+
                   console.log(`Cash: ${cashReceived}, Total: ${totalAmount}, Change: ${change}`);
               });
           }
@@ -290,13 +301,13 @@
                   if (totalElement) {
                       totalAmount = parseFloat(totalElement.dataset.totalAmount) || 0;
                       console.log('Updated total amount:', totalAmount);
-                    
+
                       // Reset cash amount and change fields
                       if (cashAmount) {
                           cashAmount.value = '';
                           changeAmount.value = '';
                       }
-                    
+
                       // Show appropriate payment section
                       const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
                       if (paymentMethod && paymentMethod.value === 'cash') {
@@ -315,36 +326,36 @@
                 function onScanSuccess(decodedText, decodedResult) {
                     try {
                         let reference = decodedText.trim();
-                    
+
                         if (reference.includes('http')) {
                             reference = new URL(reference).pathname.split('/').pop();
                         }
-                    
+
                         reference = reference.replace(/[^a-zA-Z0-9-_]/g, '');
-                    
+
                         if (paymentReference && reference) {
                             paymentReference.value = reference;
                             bookingReferenceHidden.value = reference;
-                            
+
                             // Trigger HTMX request to load booking details
                             htmx.trigger(paymentReference, 'keyup');
-                            
+
                             // Clear scanner after successful scan
                             html5QrcodeScanner.clear();
-                            
+
                             // After loading booking details, check payment status
                             setTimeout(() => {
                                 const paidBadge = document.querySelector('.bg-green-100.text-green-800');
                                 const bookingType = document.querySelector('[data-booking-type]');
-                                
+
                                 if (paidBadge && paidBadge.textContent.trim() === 'Paid') {
-                                    document.getElementById('qr-reader-results').innerHTML = 
+                                    document.getElementById('qr-reader-results').innerHTML =
                                         '<div class="bg-yellow-100 text-yellow-800 p-3 rounded-lg mt-3 text-center">' +
                                         '<i class="fas fa-exclamation-circle mr-2"></i>' +
                                         'This transaction has already been processed' +
                                         '</div>';
                                 }
-                                
+
                                 // Show appropriate payment fields based on booking type
                                 const cashPaymentDetails = document.getElementById('cash-payment-details');
                                 if (cashPaymentDetails) {
@@ -386,11 +397,11 @@
                 // Ensure total amount is consistent
                 const total = data.total_amount || totalAmount;
                 const change = cashReceived - total;
-            
+
             const today = new Date();
             const dateString = today.toLocaleDateString();
             const timeString = today.toLocaleTimeString();
-            
+
             // Create receipt HTML
             let receiptHTML = `
                 <div class="text-center mb-4">
@@ -411,7 +422,7 @@
                     <p class="text-sm">Thank you for your payment!</p>
                 </div>
             `;
-            
+
             receiptContent.innerHTML = receiptHTML;
             receiptModal.classList.remove('hidden');
             }
@@ -451,6 +462,58 @@
           paymentReference.addEventListener('input', function() {
               bookingReferenceHidden.value = this.value;
           });
+
+          // Handle payment form submission
+          if (paymentForm) {
+              paymentForm.addEventListener('submit', function(e) {
+                  e.preventDefault();
+
+                  // Validate form
+                  const bookingRef = bookingReferenceHidden.value;
+                  if (!bookingRef) {
+                      alert('Please scan or enter a booking reference');
+                      return;
+                  }
+
+                  // For cash payments, validate cash amount
+                  const paymentMethod = document.querySelector('input[name="payment_method"]:checked');
+                  if (paymentMethod && paymentMethod.value === 'cash') {
+                      const cashValue = parseFloat(cashAmount.value) || 0;
+                      if (cashValue < totalAmount) {
+                          alert('Cash amount must be equal to or greater than the total amount');
+                          return;
+                      }
+                  }
+
+                  // Set hidden field values
+                  document.getElementById('total-amount-hidden').value = totalAmount;
+                  document.getElementById('amount-received-hidden').value = parseFloat(cashAmount.value) || 0;
+
+                  // Submit form via AJAX
+                  const formData = new FormData(this);
+
+                  fetch(this.action, {
+                      method: 'POST',
+                      body: formData,
+                      headers: {
+                          'X-Requested-With': 'XMLHttpRequest'
+                      }
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          // Show receipt
+                          generateReceipt(data);
+                      } else {
+                          alert(data.error || 'An error occurred while processing the payment');
+                      }
+                  })
+                  .catch(error => {
+                      console.error('Payment processing error:', error);
+                      alert('An error occurred while processing the payment');
+                  });
+              });
+          }
       });
   </script>
 {% endblock %}
