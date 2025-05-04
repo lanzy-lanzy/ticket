@@ -45,6 +45,7 @@
                 <thead>
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vessel</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Route</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departure</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Arrival</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available Seats</th>
@@ -57,6 +58,7 @@
                     {% for schedule in schedules %}
                     <tr data-vessel-id="{{ schedule.vessel.id }}" data-status="{{ schedule.status }}" data-date="{{ schedule.departure_datetime|date:'Y-m-d' }}">
                         <td class="px-6 py-4">{{ schedule.vessel.name }}</td>
+                        <td class="px-6 py-4">{{ schedule.route.origin }} to {{ schedule.route.destination }}</td>
                         <td class="px-6 py-4">{{ schedule.departure_datetime|date:"M d, Y H:i" }}</td>
                         <td class="px-6 py-4">{{ schedule.arrival_datetime|date:"M d, Y H:i" }}</td>
                         <td class="px-6 py-4">{{ schedule.available_seats }}</td>
@@ -83,13 +85,13 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">No schedules found</td>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">No schedules found</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        
+
         <!-- Pagination -->
         {% if schedules.has_other_pages %}
         <div class="flex justify-center mt-6">
@@ -103,7 +105,7 @@
                     Previous
                 </span>
                 {% endif %}
-                
+
                 {% for i in schedules.paginator.page_range %}
                     {% if schedules.number == i %}
                     <span class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-gray-300">
@@ -115,7 +117,7 @@
                     </a>
                     {% endif %}
                 {% endfor %}
-                
+
                 {% if schedules.has_next %}
                 <a href="?page={{ schedules.next_page_number }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50">
                     Next
@@ -359,7 +361,7 @@
             scheduleForm.reset();
             document.getElementById('schedule_id').value = '';
             scheduleForm.action = "{% url 'add_schedule' %}";
-            
+
             // Fetch fresh vessel data
             fetch("{% url 'get_vessels' %}", {
                 headers: {
@@ -372,7 +374,7 @@
                 if (data.success) {
                     const vesselSelect = document.getElementById('vessel');
                     vesselSelect.innerHTML = '<option value="">Select a vessel</option>';
-                    
+
                     data.vessels.forEach(vessel => {
                         const option = document.createElement('option');
                         option.value = vessel.id;
@@ -402,7 +404,7 @@
     .then(data => {
         const routeSelect = document.getElementById('route');
         routeSelect.innerHTML = '<option value="">Select a route</option>';
-        
+
         if (Array.isArray(data.routes)) {
             data.routes.forEach(route => {
                 const option = document.createElement('option');
@@ -424,11 +426,11 @@
     });
     const now = new Date();
             const later = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
-            
+
             document.getElementById('departure_datetime').value = formatDatetimeLocal(now);
             document.getElementById('arrival_datetime').value = formatDatetimeLocal(later);
             document.getElementById('status').value = 'scheduled';
-            
+
             addModal.classList.remove('hidden');
         });
         function formatDatetimeLocal(date) {
@@ -437,7 +439,7 @@
             const day = String(date.getDate()).padStart(2, '0');
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            
+
             return `${year}-${month}-${day}T${hours}:${minutes}`;
         }
         function closeAddModal() {
@@ -465,7 +467,7 @@
         scheduleForm.addEventListener('submit', function(e) {
             const departureTime = new Date(document.getElementById('departure_datetime').value);
             const arrivalTime = new Date(document.getElementById('arrival_datetime').value);
-            
+
             if (arrivalTime <= departureTime) {
                 e.preventDefault();
                 alert('Arrival time must be after departure time');
@@ -473,13 +475,13 @@
             }
             const availableSeats = parseInt(document.getElementById('available_seats').value);
             const availableCargoSpace = parseFloat(document.getElementById('available_cargo_space').value);
-            
+
             if (availableSeats < 0 || isNaN(availableSeats)) {
                 e.preventDefault();
                 alert('Available seats must be a positive number');
                 return false;
             }
-            
+
             if (availableCargoSpace < 0 || isNaN(availableCargoSpace)) {
                 e.preventDefault();
                 alert('Available cargo space must be a positive number');
@@ -488,9 +490,9 @@
         });
         scheduleForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const formData = new FormData(scheduleForm);
-            
+
             fetch(scheduleForm.action, {
                 method: 'POST',
                 body: formData,
@@ -542,7 +544,7 @@
             modalTitle.textContent = 'Edit Schedule';
             submitButtonText.textContent = 'Update Schedule';
             scheduleForm.action = `/dashboard/schedules/${scheduleId}/edit/`;
-            
+
             // Fetch all necessary data in parallel
             Promise.all([
                 // Fetch schedule data
@@ -552,7 +554,7 @@
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                     }
                 }).then(response => response.json()),
-                
+
                 // Fetch vessels
                 fetch("{% url 'get_vessels' %}", {
                     headers: {
@@ -560,7 +562,7 @@
                         'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
                     }
                 }).then(response => response.json()),
-                
+
                 // Fetch routes
                 fetch("{% url 'get_routes' %}", {
                     headers: {
@@ -636,15 +638,15 @@
             rows.forEach(row => {
                 if (row.hasAttribute('data-vessel-id')) {
                     let showRow = true;
-                    
+
                     if (vesselId && row.getAttribute('data-vessel-id') !== vesselId) {
                         showRow = false;
                     }
-                    
+
                     if (status && row.getAttribute('data-status') !== status) {
                         showRow = false;
                     }
-                    
+
                     if (date && row.getAttribute('data-date') !== date) {
                         showRow = false;
                     }
@@ -658,7 +660,7 @@
                     const tbody = document.getElementById('schedules-table-body');
                     const newRow = document.createElement('tr');
                     newRow.id = 'no-results-row';
-                    newRow.innerHTML = '<td colspan="7" class="px-6 py-4 text-center text-gray-500">No schedules match the selected filters</td>';
+                    newRow.innerHTML = '<td colspan="8" class="px-6 py-4 text-center text-gray-500">No schedules match the selected filters</td>';
                     tbody.appendChild(newRow);
                 }
             } else if (noResultsRow) {
@@ -695,7 +697,7 @@
             if (selectedOption.value) {
                 const capacityPassengers = selectedOption.dataset.capacityPassengers;
                 const capacityCargo = selectedOption.dataset.capacityCargo;
-                
+
                 document.getElementById('available_seats').value = capacityPassengers;
                 document.getElementById('available_cargo_space').value = capacityCargo;
                 document.getElementById('available_seats').readOnly = true;
@@ -718,7 +720,7 @@
         document.getElementById('arrival_datetime').addEventListener('change', function() {
             const departureTime = new Date(document.getElementById('departure_datetime').value);
             const arrivalTime = new Date(this.value);
-            
+
             if (arrivalTime <= departureTime) {
                 alert('Arrival time must be after departure time');
                 this.value = '';
@@ -729,7 +731,7 @@
             if (arrivalInput.value) {
                 const departureTime = new Date(this.value);
                 const arrivalTime = new Date(arrivalInput.value);
-                
+
                 if (arrivalTime <= departureTime) {
                     alert('Departure time must be before arrival time');
                     this.value = '';
@@ -741,27 +743,27 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const routeSelect = document.getElementById('route');
-    
+
     routeSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const estimatedDuration = selectedOption.dataset.duration;
-        
+
         if (estimatedDuration) {
             // Get the departure datetime input
             const departureInput = document.getElementById('departure_datetime');
             const arrivalInput = document.getElementById('arrival_datetime');
-            
+
             // When departure time is set, automatically set arrival time based on route duration
             departureInput.addEventListener('change', function() {
                 if (this.value) {
                     const departureTime = new Date(this.value);
                     const [hours, minutes] = estimatedDuration.split(':');
-                    
+
                     // Calculate arrival time
                     const arrivalTime = new Date(departureTime.getTime());
                     arrivalTime.setHours(arrivalTime.getHours() + parseInt(hours));
                     arrivalTime.setMinutes(arrivalTime.getMinutes() + parseInt(minutes));
-                    
+
                     // Format the date for the datetime-local input
                     arrivalInput.value = arrivalTime.toISOString().slice(0, 16);
                 }
