@@ -14,6 +14,7 @@ urlpatterns = [
     # Existing URL patterns
     path('', views.home, name='home'),
     path('booking/', views.booking, name='booking'),
+    path('vehicle-booking/', views.vehicle_booking, name='vehicle_booking'),
     path('payment/complete/<str:booking_reference>/', views.mark_payment_complete, name='mark_payment_complete'),
     path('booking-confirmation/<str:booking_reference>/', views.booking_confirmation, name='booking_confirmation'),
     path('schedules/', views.schedules_view, name='schedules'),
@@ -43,7 +44,7 @@ urlpatterns = [
     path('dashboard/bookings/<int:pk>/view/', views.booking_view, name='booking_view'),
     path('dashboard/bookings/<int:pk>/mark-paid/', views.booking_mark_paid, name='booking_mark_paid'),
     path('dashboard/bookings/<int:pk>/print/', views.booking_print, name='booking_print'),
-     path('vessels/get/', views.get_vessels, name='get_vessels'),
+    path('vessels/get/', views.get_vessels, name='get_vessels'),
     path('routes/get/', views.get_routes, name='get_routes'),
     path('vessels/<int:vessel_id>/capacity/', views.get_vessel_capacity, name='get_vessel_capacity'),
     path('dashboard/schedules/<int:schedule_id>/get/', views.get_schedule, name='get_schedule'),
@@ -66,7 +67,7 @@ urlpatterns = [
     path('dashboard/bookings/<int:booking_id>/detail/', views.booking_detail, name='booking_detail'),
     path('dashboard/bookings/<int:booking_id>/delete/', views.booking_delete, name='booking_delete'),
     path('api/schedules/<int:schedule_id>/fares/', views.get_schedule_fares, name='get_schedule_fares'),
-     path('payment/details/<str:booking_reference>/', views.get_payment_details, name='get_payment_details'),
+    path('payment/details/<str:booking_reference>/', views.get_payment_details, name='get_payment_details'),
     path('calculate-fare/', views.calculate_fare, name='calculate_fare'),
 
     # Vessel management URLs
@@ -87,6 +88,12 @@ urlpatterns = [
 
     path('vehicle-types/', views.vehicle_types_view, name='vehicle_types'),
     path('vehicle-types/get/', views.get_vehicle_types, name='get_vehicle_types'),
+
+    # Vehicle management URLs
+    path('dashboard/vehicles/', views.vehicle_list, name='vehicle_list'),
+    path('dashboard/vehicles/add/', views.add_vehicle, name='add_vehicle'),
+    path('vehicles/<int:vehicle_id>/edit/', views.edit_vehicle, name='edit_vehicle'),
+    path('vehicles/<int:vehicle_id>/delete/', views.delete_vehicle, name='delete_vehicle'),
 
     path('calculate-vehicle-fare/', views.calculate_vehicle_fare, name='calculate_vehicle_fare'),
     path('calculate-fare/', views.calculate_fare, name='calculate_fare'),

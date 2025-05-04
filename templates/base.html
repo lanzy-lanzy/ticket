@@ -26,9 +26,22 @@
                 <div class="hidden md:flex items-center space-x-6">
                     <a href="{% url 'home' %}" class="hover:text-blue-200">Home</a>
                     <a href="{% url 'schedules' %}" class="hover:text-blue-200">Schedules</a>
+                    <div class="relative group">
+                        <a href="{% url 'booking' %}" class="hover:text-blue-200 flex items-center">
+                            Book Now <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                        </a>
+                        <div class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden group-hover:block">
+                            <a href="{% url 'booking' %}" class="block px-4 py-2 text-gray-800 hover:bg-blue-100">
+                                <i class="fas fa-users mr-2"></i> Passenger Booking
+                            </a>
+                            <a href="{% url 'vehicle_booking' %}" class="block px-4 py-2 text-gray-800 hover:bg-blue-100">
+                                <i class="fas fa-truck mr-2"></i> Vehicle Booking
+                            </a>
+                        </div>
+                    </div>
                     <a href="{% url 'guidelines' %}" class="hover:text-blue-200">Guidelines</a>
                     <a href="{% url 'contact' %}" class="hover:text-blue-200">Contact</a>
-                    
+
                     {% if user.is_authenticated %}
                         {% if user.is_staff %}
                             <a href="{% url 'dashboard' %}" class="hover:text-blue-200">
@@ -44,7 +57,7 @@
                         </a>
                     {% endif %}
                 </div>
-                
+
                 <!-- Mobile menu button -->
                 <div class="md:hidden">
                     <button class="mobile-menu-button">
@@ -59,9 +72,21 @@
     <div class="mobile-menu hidden md:hidden bg-blue-800 text-white">
         <a href="{% url 'home' %}" class="block py-2 px-4 hover:bg-blue-700">Home</a>
         <a href="{% url 'schedules' %}" class="block py-2 px-4 hover:bg-blue-700">Schedules</a>
+
+        <!-- Booking Options -->
+        <div class="py-2 px-4 hover:bg-blue-700">
+            <span class="block font-semibold">Book Now</span>
+            <a href="{% url 'booking' %}" class="block py-2 pl-8 hover:bg-blue-600">
+                <i class="fas fa-users mr-2"></i> Passenger Booking
+            </a>
+            <a href="{% url 'vehicle_booking' %}" class="block py-2 pl-8 hover:bg-blue-600">
+                <i class="fas fa-truck mr-2"></i> Vehicle Booking
+            </a>
+        </div>
+
         <a href="{% url 'guidelines' %}" class="block py-2 px-4 hover:bg-blue-700">Guidelines</a>
         <a href="{% url 'contact' %}" class="block py-2 px-4 hover:bg-blue-700">Contact</a>
-        
+
         {% if user.is_authenticated %}
             {% if user.is_staff %}
                 <a href="{% url 'dashboard' %}" class="block py-2 px-4 hover:bg-blue-700">

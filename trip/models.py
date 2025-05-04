@@ -58,13 +58,29 @@ class Schedule(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        help_text="Adult passenger fare rate"
+        help_text="Regular adult passenger fare rate"
     )
     child_fare = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
         help_text="Child passenger fare rate (ages 3-11)"
+    )
+    student_fare = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
+        help_text="Student fare rate (with valid ID)"
+    )
+    senior_fare = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
+        help_text="Senior citizen fare rate (with valid ID)"
     )
 
     STATUS_CHOICES = [
@@ -133,6 +149,19 @@ class VehicleType(models.Model):
     def __str__(self):
         return self.name
 
+class Vehicle(models.Model):
+    name = models.CharField(max_length=100)
+    plate_number = models.CharField(max_length=20)
+    description = models.TextField(blank=True, null=True)
+    capacity = models.PositiveIntegerField(help_text="Maximum capacity in number of people")
+    active = models.BooleanField(default=True)
+    vehicle_type = models.ForeignKey(VehicleType, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.plate_number})"
+
 # --------------------------------
 # 3. BOOKING & QR CODE GENERATION
 # --------------------------------
@@ -140,8 +169,10 @@ class VehicleType(models.Model):
 class Passenger(models.Model):
     """Model to store individual passenger information"""
     PASSENGER_TYPE_CHOICES = [
-        ('adult', 'Adult'),
+        ('adult', 'Regular Adult'),
         ('child', 'Child'),
+        ('student', 'Student'),
+        ('senior', 'Senior Citizen'),
     ]
 
     full_name = models.CharField(max_length=200)
@@ -223,6 +254,14 @@ class Booking(models.Model):
         default=0,
         validators=[MinValueValidator(0)]
     )
+    student_passengers = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    senior_passengers = models.PositiveIntegerField(
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
     adult_fare_rate = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -232,6 +271,20 @@ class Booking(models.Model):
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)]
+    )
+    student_fare_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True
+    )
+    senior_fare_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True
     )
     total_fare = models.DecimalField(
         max_digits=10,
@@ -248,9 +301,15 @@ class Booking(models.Model):
 
         adult_rate = self.adult_fare_rate if self.adult_fare_rate is not None else Decimal('0.00')
         child_rate = self.child_fare_rate if self.child_fare_rate is not None else Decimal('0.00')
+        student_rate = self.student_fare_rate if self.student_fare_rate is not None else Decimal('0.00')
+        senior_rate = self.senior_fare_rate if self.senior_fare_rate is not None else Decimal('0.00')
+
         adult_total = self.adult_passengers * adult_rate
         child_total = self.child_passengers * child_rate
-        return adult_total + child_total
+        student_total = self.student_passengers * student_rate
+        senior_total = self.senior_passengers * senior_rate
+
+        return adult_total + child_total + student_total + senior_total
 
     def __str__(self):
         return f"{self.get_booking_type_display()} Booking {self.booking_reference} - {self.full_name}"
@@ -299,7 +358,11 @@ class Booking(models.Model):
     @property
     def total_amount(self):
         if self.booking_type == 'passenger':
-            return (self.adult_passengers * self.adult_fare_rate) + (self.child_passengers * self.child_fare_rate)
+            adult_total = self.adult_passengers * self.adult_fare_rate
+            child_total = self.child_passengers * self.child_fare_rate
+            student_total = self.student_passengers * (self.student_fare_rate or Decimal('0.00'))
+            senior_total = self.senior_passengers * (self.senior_fare_rate or Decimal('0.00'))
+            return adult_total + child_total + student_total + senior_total
         elif self.booking_type == 'vehicle':
             # Only return the base fare for vehicles
             return self.vehicle_type.base_fare if self.vehicle_type else Decimal('0.00')

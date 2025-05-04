@@ -70,6 +70,18 @@
                 <th>Child Passengers</th>
                 <td>{{ booking.child_passengers }}</td>
             </tr>
+            {% if booking.student_passengers > 0 %}
+            <tr>
+                <th>Student Passengers</th>
+                <td>{{ booking.student_passengers }}</td>
+            </tr>
+            {% endif %}
+            {% if booking.senior_passengers > 0 %}
+            <tr>
+                <th>Senior Citizen Passengers</th>
+                <td>{{ booking.senior_passengers }}</td>
+            </tr>
+            {% endif %}
             {% else %}
             <tr>
                 <th>Vehicle Type</th>

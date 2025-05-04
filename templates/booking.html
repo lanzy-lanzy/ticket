@@ -37,6 +37,9 @@
                         </option>
                         {% endfor %}
                     </select>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        <i class="fas fa-search mr-2"></i>Select
+                    </button>
                     <script>
                         // Initialize fare calculation when page loads if a schedule is already selected
                         document.addEventListener('DOMContentLoaded', function() {
@@ -45,6 +48,12 @@
                                 // Trigger the change event to calculate fare
                                 const event = new Event('change');
                                 scheduleSelect.dispatchEvent(event);
+
+                                // Update the hidden input in the booking form
+                                const hiddenScheduleInput = document.querySelector('#booking-form input[name="schedule"]');
+                                if (hiddenScheduleInput) {
+                                    hiddenScheduleInput.value = scheduleSelect.value;
+                                }
                             }
                         });
                     </script>
@@ -79,36 +88,38 @@
 
             <form id="booking-form" method="post" action="{% url 'create_booking' %}" class="space-y-6">
                 {% csrf_token %}
-                <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
+                <input type="hidden" name="schedule" value="{{ selected_schedule.id|default:'' }}">
+                <!-- Debug info -->
+                <div id="debug-info" class="hidden">
+                    <p>Form action: <span id="form-action-debug"></span></p>
+                    <p>Schedule ID: <span id="schedule-id-debug"></span></p>
+                </div>
 
-                <!-- Booking Type Selection -->
-                <div class="mb-6">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Booking Type</label>
-                    <div class="flex space-x-4">
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="booking_type" value="passenger" checked
-                                   class="form-radio text-blue-600" onclick="toggleBookingType('passenger')">
-                            <span>Passenger</span>
-                        </label>
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="radio" name="booking_type" value="vehicle"
-                                   class="form-radio text-blue-600" onclick="toggleBookingType('vehicle')">
-                            <span>Vehicle</span>
-                        </label>
+                <!-- Hidden Booking Type -->
+                <input type="hidden" name="booking_type" value="passenger">
+
+                <!-- Booking Type Info -->
+                <div class="mb-6 flex justify-between items-center">
+                    <div>
+                        <span class="text-lg font-semibold text-blue-600">Passenger Booking</span>
+                        <p class="text-sm text-gray-600">Book tickets for passengers</p>
                     </div>
+                    <a href="{% url 'vehicle_booking' %}" class="text-blue-600 hover:text-blue-800 flex items-center">
+                        <i class="fas fa-truck mr-1"></i> Switch to Vehicle Booking
+                    </a>
                 </div>
 
                 <!-- Passenger Details -->
                 <div id="passenger-details" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Adult Passengers</label>
-                            <input type="number" name="adult_passengers" id="adult_passengers" min="1" value="1"
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Regular Adult Passengers</label>
+                            <input type="number" name="adult_passengers" id="adult_passengers" min="0" value="1"
                                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                    hx-get="{% url 'calculate_fare' %}"
                                    hx-trigger="change, keyup delay:500ms"
                                    hx-target="#fare-summary"
-                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers']"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers'], [name='student_passengers'], [name='senior_passengers']"
                                    onchange="updatePassengerFields(); updateFareSummary();">
                         </div>
                         <div>
@@ -118,7 +129,29 @@
                                    hx-get="{% url 'calculate_fare' %}"
                                    hx-trigger="change, keyup delay:500ms"
                                    hx-target="#fare-summary"
-                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers']"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers'], [name='student_passengers'], [name='senior_passengers']"
+                                   onchange="updatePassengerFields(); updateFareSummary();">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Student Passengers (with ID)</label>
+                            <input type="number" name="student_passengers" id="student_passengers" min="0" value="0"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   hx-get="{% url 'calculate_fare' %}"
+                                   hx-trigger="change, keyup delay:500ms"
+                                   hx-target="#fare-summary"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers'], [name='student_passengers'], [name='senior_passengers']"
+                                   onchange="updatePassengerFields(); updateFareSummary();">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Senior Citizen Passengers (with ID)</label>
+                            <input type="number" name="senior_passengers" id="senior_passengers" min="0" value="0"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   hx-get="{% url 'calculate_fare' %}"
+                                   hx-trigger="change, keyup delay:500ms"
+                                   hx-target="#fare-summary"
+                                   hx-include="[name='schedule'], [name='adult_passengers'], [name='child_passengers'], [name='student_passengers'], [name='senior_passengers']"
                                    onchange="updatePassengerFields(); updateFareSummary();">
                         </div>
                     </div>
@@ -146,6 +179,22 @@
                             <h4 class="text-md font-semibold text-gray-700">Child Passengers</h4>
                             <div id="child-passenger-fields" class="space-y-2">
                                 <!-- Child passenger fields will be added here dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Student Passengers -->
+                        <div id="student-passengers-container" class="space-y-3" style="display: none;">
+                            <h4 class="text-md font-semibold text-gray-700">Student Passengers</h4>
+                            <div id="student-passenger-fields" class="space-y-2">
+                                <!-- Student passenger fields will be added here dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Senior Passengers -->
+                        <div id="senior-passengers-container" class="space-y-3" style="display: none;">
+                            <h4 class="text-md font-semibold text-gray-700">Senior Citizen Passengers</h4>
+                            <div id="senior-passenger-fields" class="space-y-2">
+                                <!-- Senior passenger fields will be added here dynamically -->
                             </div>
                         </div>
                     </div>
@@ -182,9 +231,9 @@
       <div class="space-y-2">
           <div class="flex justify-between">
               <span>
-                  Adult Fare (₱{{ selected_schedule.adult_fare|floatformat:2 }} × <span id="adult-count">1</span>)
+                  Regular Adult Fare (₱{{ selected_schedule.adult_fare|floatformat:2 }} × <span id="adult-count">1</span>)
               </span>
-              <span class="font-semibold">
+              <span class="font-semibold" data-adult-fare="{{ selected_schedule.adult_fare }}">
                   ₱{{ selected_schedule.adult_fare|multiply:1 }}
               </span>
           </div>
@@ -192,8 +241,24 @@
               <span>
                   Child Fare (₱{{ selected_schedule.child_fare|floatformat:2 }} × <span id="child-count">0</span>)
               </span>
-              <span class="font-semibold">
+              <span class="font-semibold" data-child-fare="{{ selected_schedule.child_fare }}">
                   ₱{{ selected_schedule.child_fare|multiply:0 }}
+              </span>
+          </div>
+          <div class="flex justify-between">
+              <span>
+                  Student Fare (₱{{ selected_schedule.student_fare|floatformat:2 }} × <span id="student-count">0</span>)
+              </span>
+              <span class="font-semibold" data-student-fare="{{ selected_schedule.student_fare }}">
+                  ₱{{ selected_schedule.student_fare|multiply:0 }}
+              </span>
+          </div>
+          <div class="flex justify-between">
+              <span>
+                  Senior Citizen Fare (₱{{ selected_schedule.senior_fare|floatformat:2 }} × <span id="senior-count">0</span>)
+              </span>
+              <span class="font-semibold" data-senior-fare="{{ selected_schedule.senior_fare }}">
+                  ₱{{ selected_schedule.senior_fare|multiply:0 }}
               </span>
           </div>
           <div class="border-t pt-2 flex justify-between font-bold">
@@ -213,47 +278,6 @@
     {% endif %}
 </div>
 
-                </div>                <!-- Vehicle Details -->
-                <div id="vehicle-details" class="space-y-6" style="display: none;">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Vehicle Type</label>
-                            <select id="vehicle_type" name="vehicle_type" class="form-select">
-                                {% for vehicle_type in vehicle_types %}
-                                    <option value="{{ vehicle_type.id }}" data-base-fare="{{ vehicle_type.base_fare }}">
-                                        {{ vehicle_type.name }} - ₱{{ vehicle_type.base_fare }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Plate Number</label>
-                            <input type="text" name="plate_number"
-                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                   placeholder="Enter plate number">
-                        </div>
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">
-                                Number of Occupants
-                                <span class="text-sm text-gray-500" id="max-occupants-info"></span>
-                            </label>
-                            <input type="number" name="occupant_count" min="1" value="1"
-                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">
-                                Cargo Weight (tons)
-                                <span class="text-sm text-gray-500" id="max-cargo-info"></span>
-                            </label>
-                            <input type="number" name="cargo_weight" min="0" step="0.1" value="0"
-                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <!-- Vehicle Fare Details -->
-                    <div id="vehicle-fare-details" class="bg-gray-50 p-4 rounded-lg">
-                        <p class="text-center text-gray-600">Select a vehicle type to view fare details</p>
-                    </div>
                 </div>
 
                 <!-- Contact Information -->
@@ -285,7 +309,7 @@
 
                 <!-- Submit Button -->
                 <div class="flex justify-end">
-                    <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    <button type="submit" id="confirm-booking-btn" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
                         <i class="fas fa-check-circle mr-2"></i>Confirm Booking
                     </button>
                 </div>
@@ -297,43 +321,109 @@
 
 {% block extra_js %}
 <script>
-function toggleBookingType(type) {
-    const passengerDetails = document.getElementById('passenger-details');
-    const vehicleDetails = document.getElementById('vehicle-details');
 
-    if (type === 'passenger') {
-        passengerDetails.style.display = 'block';
-        vehicleDetails.style.display = 'none';
-        console.log('Showing passenger details');
-    } else if (type === 'vehicle') {
-        passengerDetails.style.display = 'none';
-        vehicleDetails.style.display = 'block';
-        console.log('Showing vehicle details');
-    }
-}
-
-// Initialize the form with passenger type selected
 document.addEventListener('DOMContentLoaded', function() {
     const scheduleSelect = document.getElementById('schedule-select');
     const bookingForm = document.getElementById('booking-form');
+    const fullNameInput = document.querySelector('input[name="full_name"]');
+    const contactNumberInput = document.querySelector('input[name="contact_number"]');
+    const emailInput = document.querySelector('input[name="email"]');
 
-    // Set initial state
-    toggleBookingType('passenger');
+    // Debug info
+    const formActionDebug = document.getElementById('form-action-debug');
+    const scheduleIdDebug = document.getElementById('schedule-id-debug');
+
+    // Update debug info
+    if (formActionDebug) formActionDebug.textContent = bookingForm.action;
+    if (scheduleIdDebug) scheduleIdDebug.textContent = document.querySelector('input[name="schedule"]').value;
 
     // Initialize passenger fields
     updatePassengerFields();
 
-    // Add event listeners to radio buttons
-    document.querySelectorAll('input[name="booking_type"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            toggleBookingType(e.target.value);
+    // Auto-fill the contact person's name from user info or localStorage
+    if (fullNameInput) {
+        // Check if user info is available from the server
+        const userFullName = '{{ user_info.full_name|default:"" }}';
+
+        if (userFullName) {
+            // Use user info from the server
+            fullNameInput.value = userFullName;
+
+            // Also update the first passenger name if it exists
+            const firstPassengerInput = document.querySelector('input[name="adult_passenger_name_1"]');
+            if (firstPassengerInput) {
+                firstPassengerInput.value = userFullName;
+            }
+        } else {
+            // Fall back to localStorage if no user info
+            const savedName = localStorage.getItem('contactPersonName');
+            if (savedName) {
+                fullNameInput.value = savedName;
+
+                // Also update the first passenger name if it exists
+                const firstPassengerInput = document.querySelector('input[name="adult_passenger_name_1"]');
+                if (firstPassengerInput) {
+                    firstPassengerInput.value = savedName;
+                }
+            }
+        }
+
+        // Add event listener to the full name input to update the first passenger name
+        fullNameInput.addEventListener('input', function() {
+            // Save to localStorage for use across forms
+            localStorage.setItem('contactPersonName', this.value);
+
+            // Only update the first passenger name if it exists
+            const firstPassengerInput = document.querySelector('input[name="adult_passenger_name_1"]');
+            if (firstPassengerInput) {
+                firstPassengerInput.value = this.value;
+            }
         });
-    });
+    }
+
+    // Auto-fill contact number from localStorage if available
+    if (contactNumberInput) {
+        const savedContactNumber = localStorage.getItem('contactNumber');
+        if (savedContactNumber) {
+            contactNumberInput.value = savedContactNumber;
+        }
+
+        // Save contact number to localStorage when it changes
+        contactNumberInput.addEventListener('input', function() {
+            localStorage.setItem('contactNumber', this.value);
+        });
+    }
+
+    // Auto-fill email from user info or localStorage
+    if (emailInput) {
+        // Check if user info is available from the server
+        const userEmail = '{{ user_info.email|default:"" }}';
+
+        if (userEmail) {
+            // Use user info from the server
+            emailInput.value = userEmail;
+        } else {
+            // Fall back to localStorage if no user info
+            const savedEmail = localStorage.getItem('contactEmail');
+            if (savedEmail) {
+                emailInput.value = savedEmail;
+            }
+        }
+
+        // Save email to localStorage when it changes
+        emailInput.addEventListener('input', function() {
+            localStorage.setItem('contactEmail', this.value);
+        });
+    }
 
     // Update hidden schedule input when schedule is selected
     scheduleSelect.addEventListener('change', function() {
         const scheduleId = this.value;
         if (scheduleId) {
+            // Update the hidden input field with the selected schedule ID
+            document.querySelector('input[name="schedule"]').value = scheduleId;
+
+            // Update the HTMX URL and trigger the change event
             const url = this.getAttribute('hx-get').replace('/0/', `/${scheduleId}/`);
             this.setAttribute('hx-get', url);
             htmx.trigger(this, 'change');
@@ -342,128 +432,116 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Form validation
     if (bookingForm) {
+        console.log('Adding submit event listener to booking form');
         bookingForm.addEventListener('submit', function(e) {
-            const scheduleId = document.querySelector('select[name="schedule"]').value;
-            const bookingType = document.querySelector('input[name="booking_type"]:checked').value;
+            console.log('Form submission event triggered');
+            e.preventDefault(); // Prevent default form submission initially
+
+            const scheduleId = document.querySelector('input[name="schedule"]').value;
+            console.log('Form submission - Schedule ID:', scheduleId);
+
+            // Show loading state on button
+            const submitBtn = document.getElementById('confirm-booking-btn');
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+            submitBtn.disabled = true;
+
+            console.log('Form submission started');
+            console.log('Schedule ID:', scheduleId);
 
             if (!scheduleId) {
-                e.preventDefault();
                 alert('Please select a schedule before proceeding with the booking.');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
                 return false;
             }
 
-            if (bookingType === 'vehicle') {
-                const vehicleType = document.querySelector('select[name="vehicle_type"]').value;
-                const plateNumber = document.querySelector('input[name="plate_number"]').value;
+            // Validate phone number
+            const phoneInput = document.querySelector('input[name="contact_number"]');
+            const phoneNumber = phoneInput.value;
 
-                if (!vehicleType) {
-                    e.preventDefault();
-                    alert('Please select a vehicle type.');
-                    return false;
-                }
-
-                if (!plateNumber.trim()) {
-                    e.preventDefault();
-                    alert('Please enter a plate number.');
-                    return false;
-                }
+            if (!phoneNumber.startsWith('+')) {
+                alert('Phone number must start with + and country code (e.g., +639123456789)');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
             }
+
+            // Ensure the form is using the correct action URL
+            if (!bookingForm.action.includes('create_booking')) {
+                console.log('Setting form action to create_booking URL');
+                bookingForm.action = "{% url 'create_booking' %}";
+            }
+
+            // Force the form to use POST method
+            bookingForm.method = 'post';
+
+            // Double check that all required fields are present
+            const requiredFields = ['schedule', 'booking_type', 'full_name', 'contact_number', 'email', 'adult_passengers', 'child_passengers', 'student_passengers', 'senior_passengers'];
+
+            let missingFields = [];
+            requiredFields.forEach(field => {
+                const element = document.querySelector(`[name="${field}"]`);
+                if (!element || !element.value) {
+                    missingFields.push(field);
+                }
+            });
+
+            if (missingFields.length > 0) {
+                console.error('Missing required fields:', missingFields);
+                alert('Error: Missing required fields: ' + missingFields.join(', '));
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            console.log('Submitting form with action:', bookingForm.action);
+            console.log('Form method:', bookingForm.method);
+            console.log('All required fields are present');
+            bookingForm.submit();
         });
     }
-
-    // Add this JavaScript to handle vehicle type selection
-    const vehicleTypeSelect = document.getElementById('vehicle-type-select');
-    const occupantInput = document.querySelector('input[name="occupant_count"]');
-    const cargoInput = document.querySelector('input[name="cargo_weight"]');
-    const maxOccupantsInfo = document.getElementById('max-occupants-info');
-    const maxCargoInfo = document.getElementById('max-cargo-info');
-
-    vehicleTypeSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const maxOccupants = selectedOption.dataset.maxOccupants;
-        const maxCargo = selectedOption.dataset.maxCargo;
-
-        // Update max values and info text
-        if (maxOccupants) {
-            occupantInput.max = maxOccupants;
-            maxOccupantsInfo.textContent = `(Max: ${maxOccupants})`;
-        }
-        if (maxCargo) {
-            cargoInput.max = maxCargo;
-            maxCargoInfo.textContent = `(Max: ${maxCargo} tons)`;
-        }
-
-        // Validate current values
-        if (parseInt(occupantInput.value) > parseInt(maxOccupants)) {
-            occupantInput.value = maxOccupants;
-        }
-        if (parseFloat(cargoInput.value) > parseFloat(maxCargo)) {
-            cargoInput.value = maxCargo;
-        }
-    });
-
-    // Add validation for occupants and cargo
-    occupantInput.addEventListener('change', function() {
-        const maxOccupants = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxOccupants;
-        if (parseInt(this.value) > parseInt(maxOccupants)) {
-            alert(`Maximum ${maxOccupants} occupants allowed for this vehicle type`);
-            this.value = maxOccupants;
-        }
-    });
-
-    cargoInput.addEventListener('change', function() {
-        const maxCargo = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxCargo;
-        if (parseFloat(this.value) > parseFloat(maxCargo)) {
-            alert(`Maximum ${maxCargo} tons of cargo allowed for this vehicle type`);
-            this.value = maxCargo;
-        }
-    });
 });
 
-document.getElementById('booking-form').addEventListener('submit', function(e) {
-    const phoneInput = document.querySelector('input[name="contact_number"]');
-    const phoneNumber = phoneInput.value;
+// Phone number validation is now handled in the main form submission handler
 
-    if (!phoneNumber.startsWith('+')) {
-        e.preventDefault();
-        alert('Phone number must start with + and country code (e.g., +639123456789)');
-    }
-});
-
-function updateVehicleFare() {
-    const vehicleTypeSelect = document.getElementById('vehicle_type');
-    if (!vehicleTypeSelect) return;
-
-    const selectedOption = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex];
-    if (!selectedOption) return;
-
-    const baseFare = selectedOption.getAttribute('data-base-fare');
-    if (baseFare) {
-        const formattedFare = parseFloat(baseFare).toFixed(2);
-        document.getElementById('vehicle_fare_display').textContent = `₱${formattedFare}`;
-        document.getElementById('total_fare_display').textContent = `₱${formattedFare}`;
-    }
-}
-
-// Add event listener for vehicle type change
-document.getElementById('vehicle_type')?.addEventListener('change', updateVehicleFare);
+// We don't need the updateVehicleFare function anymore since we're using HTMX
+// to update the vehicle fare details
 
 // Function to dynamically update passenger name fields
 function updatePassengerFields() {
     const adultCount = parseInt(document.getElementById('adult_passengers').value) || 0;
     const childCount = parseInt(document.getElementById('child_passengers').value) || 0;
+    const studentCount = parseInt(document.getElementById('student_passengers').value) || 0;
+    const seniorCount = parseInt(document.getElementById('senior_passengers').value) || 0;
+
+    // Get the previous adult count to determine if we're adding new passengers
+    const previousAdultCount = document.querySelectorAll('[name^="adult_passenger_name_"]').length;
+    const isAddingNewPassenger = adultCount > previousAdultCount;
 
     // Update adult passenger fields
     const adultContainer = document.getElementById('adult-passenger-fields');
     adultContainer.innerHTML = '';
 
+    // Get the contact person's name for autofill
+    const contactPersonName = document.querySelector('input[name="full_name"]').value;
+
     for (let i = 1; i <= adultCount; i++) {
         const field = document.createElement('div');
         field.className = 'flex items-center space-x-2';
+
+        // Only autofill the first passenger's name with the contact person's name
+        // and only if we're not adding a new passenger (i.e., increasing the count)
+        let autofilledValue = '';
+        if (i === 1 && contactPersonName && !isAddingNewPassenger) {
+            autofilledValue = contactPersonName;
+        }
+
         field.innerHTML = `
             <input type="text" name="adult_passenger_name_${i}"
                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                   placeholder="Adult Passenger ${i} Full Name" required>
+                   placeholder="Regular Adult Passenger ${i} Full Name" required
+                   value="${autofilledValue}">
         `;
         adultContainer.appendChild(field);
     }
@@ -489,6 +567,50 @@ function updatePassengerFields() {
     } else {
         childContainer.style.display = 'none';
     }
+
+    // Update student passenger fields
+    const studentContainer = document.getElementById('student-passengers-container');
+    const studentFieldsContainer = document.getElementById('student-passenger-fields');
+
+    if (studentCount > 0) {
+        studentContainer.style.display = 'block';
+        studentFieldsContainer.innerHTML = '';
+
+        for (let i = 1; i <= studentCount; i++) {
+            const field = document.createElement('div');
+            field.className = 'flex items-center space-x-2';
+            field.innerHTML = `
+                <input type="text" name="student_passenger_name_${i}"
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Student Passenger ${i} Full Name" required>
+            `;
+            studentFieldsContainer.appendChild(field);
+        }
+    } else {
+        studentContainer.style.display = 'none';
+    }
+
+    // Update senior passenger fields
+    const seniorContainer = document.getElementById('senior-passengers-container');
+    const seniorFieldsContainer = document.getElementById('senior-passenger-fields');
+
+    if (seniorCount > 0) {
+        seniorContainer.style.display = 'block';
+        seniorFieldsContainer.innerHTML = '';
+
+        for (let i = 1; i <= seniorCount; i++) {
+            const field = document.createElement('div');
+            field.className = 'flex items-center space-x-2';
+            field.innerHTML = `
+                <input type="text" name="senior_passenger_name_${i}"
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Senior Citizen Passenger ${i} Full Name" required>
+            `;
+            seniorFieldsContainer.appendChild(field);
+        }
+    } else {
+        seniorContainer.style.display = 'none';
+    }
 }
 
 // Function to update fare summary without HTMX
@@ -496,16 +618,45 @@ function updateFareSummary() {
     // Update the passenger count display
     const adultCount = parseInt(document.getElementById('adult_passengers').value) || 0;
     const childCount = parseInt(document.getElementById('child_passengers').value) || 0;
+    const studentCount = parseInt(document.getElementById('student_passengers').value) || 0;
+    const seniorCount = parseInt(document.getElementById('senior_passengers').value) || 0;
 
     // Update the count display
     const adultCountDisplay = document.getElementById('adult-count');
     const childCountDisplay = document.getElementById('child-count');
+    const studentCountDisplay = document.getElementById('student-count');
+    const seniorCountDisplay = document.getElementById('senior-count');
 
     if (adultCountDisplay) adultCountDisplay.textContent = adultCount;
     if (childCountDisplay) childCountDisplay.textContent = childCount;
+    if (studentCountDisplay) studentCountDisplay.textContent = studentCount;
+    if (seniorCountDisplay) seniorCountDisplay.textContent = seniorCount;
 
-    // This is a fallback in case HTMX fails to update the fare summary
-    // The actual fare calculation is done by the server via HTMX
+    // Calculate total amount as a fallback if HTMX fails
+    try {
+        // Get fare rates from the page
+        const adultFare = parseFloat(document.querySelector('[data-adult-fare]')?.dataset.adultFare) || 0;
+        const childFare = parseFloat(document.querySelector('[data-child-fare]')?.dataset.childFare) || 0;
+        const studentFare = parseFloat(document.querySelector('[data-student-fare]')?.dataset.studentFare) || 0;
+        const seniorFare = parseFloat(document.querySelector('[data-senior-fare]')?.dataset.seniorFare) || 0;
+
+        // Calculate totals
+        const adultTotal = adultCount * adultFare;
+        const childTotal = childCount * childFare;
+        const studentTotal = studentCount * studentFare;
+        const seniorTotal = seniorCount * seniorFare;
+
+        // Update total amount
+        const totalAmount = adultTotal + childTotal + studentTotal + seniorTotal;
+        const totalAmountDisplay = document.getElementById('total-amount');
+
+        if (totalAmountDisplay) {
+            totalAmountDisplay.textContent = totalAmount.toFixed(2);
+        }
+    } catch (error) {
+        console.error('Error calculating fare:', error);
+        // The actual fare calculation is done by the server via HTMX
+    }
 }
 </script>
 {% endblock %}

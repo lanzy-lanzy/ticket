@@ -41,15 +41,17 @@
             <h1>Travel Ticket</h1>
             <h2>{{ booking.booking_reference }}</h2>
         </div>
-        
+
         <div class="details">
             <p><strong>Passenger:</strong> {{ booking.full_name }}</p>
             <p><strong>Schedule:</strong> {{ booking.schedule.route.name }}</p>
             <p><strong>Departure:</strong> {{ booking.schedule.departure_datetime|date:"F d, Y H:i" }}</p>
             <p><strong>Vessel:</strong> {{ booking.schedule.vessel.name }}</p>
-            <p><strong>Passengers:</strong> 
+            <p><strong>Passengers:</strong>
                 {% if booking.adult_passengers %}Adult: {{ booking.adult_passengers }}{% endif %}
                 {% if booking.child_passengers %}, Child: {{ booking.child_passengers }}{% endif %}
+                {% if booking.student_passengers %}, Student: {{ booking.student_passengers }}{% endif %}
+                {% if booking.senior_passengers %}, Senior: {{ booking.senior_passengers }}{% endif %}
             </p>
             <p><strong>Amount Paid:</strong> ₱{{ booking.total_amount }}</p>
         </div>

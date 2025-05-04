@@ -10,7 +10,7 @@
     <div class="absolute inset-0 opacity-10">
         <div class="absolute top-0 left-0 w-full h-full" style="background-image: url('{% static 'images/ferry-pattern.svg' %}'); background-size: 180px; background-repeat: repeat;"></div>
     </div>
-    
+
     <!-- Alternative if SVG not available -->
     <style>
         .ferry-pattern {
@@ -20,7 +20,7 @@
             background-image: radial-gradient(circle, white 1px, transparent 1px);
             background-size: 40px 40px;
         }
-        
+
         .wave-pattern {
             position: absolute;
             bottom: 0;
@@ -30,7 +30,7 @@
             background-image: url('{% static 'images/wave-pattern.svg' %}');
             background-size: cover;
         }
-        
+
         @media print {
             .no-print {
                 display: none !important;
@@ -52,15 +52,15 @@
                 margin-bottom: 20px;
             }
         }
-        
+
         .print-only {
             display: none;
         }
     </style>
-    
+
     <div class="ferry-pattern"></div>
     <div class="wave-pattern"></div>
-    
+
     <div class="container mx-auto px-4 relative z-10">
         <h1 class="text-4xl font-bold text-white text-center mb-4">Booking Confirmation</h1>
         <p class="text-blue-100 text-center max-w-2xl mx-auto">Your booking has been confirmed. Please pay cash on arrival.</p>
@@ -83,13 +83,13 @@
                 <div class="mb-6 no-print">
                     <h3 class="font-medium text-gray-800 mb-4">Select Payment Method</h3>
                     <div class="flex space-x-4">
-                        <button onclick="selectPaymentMethod('cash')" 
+                        <button onclick="selectPaymentMethod('cash')"
                                 class="payment-method-btn flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-300"
                                 data-method="cash">
                             <i class="fas fa-money-bill-wave mr-2"></i>
                             Cash on Arrival
                         </button>
-                        <button onclick="selectPaymentMethod('gcash')" 
+                        <button onclick="selectPaymentMethod('gcash')"
                                 class="payment-method-btn flex-1 py-3 px-4 rounded-lg border-2 transition-all duration-300"
                                 data-method="gcash">
                             <i class="fas fa-mobile-alt mr-2"></i>
@@ -113,7 +113,7 @@
                                 <p class="font-bold">{{ booking.booking_reference }}</p>
                             </div>
                         </div>
-                        
+
                         <!-- Passenger & Trip Details -->
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div>
@@ -129,29 +129,41 @@
                                 <p><span class="text-gray-600">Departure:</span> {{ booking.schedule.departure_datetime|date:"F d, Y - h:i A" }}</p>
                             </div>
                         </div>
-                        
+
                         <!-- Booking Details -->
                         <div class="mb-6">
                             <h4 class="font-medium text-gray-700 mb-2">Booking Details</h4>
                             <div class="grid grid-cols-2 gap-4">
                                 <p class="mb-1"><span class="text-gray-600">Booking Type:</span> {{ booking.get_booking_type_display }}</p>
                                 <p class="mb-1"><span class="text-gray-600">Payment Status:</span> <span class="text-orange-600 font-medium">Pending - Cash on Arrival</span></p>
-                                
+
                                 {% if booking.booking_type == 'passenger' %}
-                                <p class="mb-1"><span class="text-gray-600">Passengers:</span> {{ booking.number_of_passengers }}</p>
+                                <p class="mb-1"><span class="text-gray-600">Total Passengers:</span> {{ booking.number_of_passengers }}</p>
+                                {% if booking.adult_passengers > 0 %}
+                                <p class="mb-1"><span class="text-gray-600">Regular Adults:</span> {{ booking.adult_passengers }}</p>
                                 {% endif %}
-                                
+                                {% if booking.child_passengers > 0 %}
+                                <p class="mb-1"><span class="text-gray-600">Children:</span> {{ booking.child_passengers }}</p>
+                                {% endif %}
+                                {% if booking.student_passengers > 0 %}
+                                <p class="mb-1"><span class="text-gray-600">Students:</span> {{ booking.student_passengers }}</p>
+                                {% endif %}
+                                {% if booking.senior_passengers > 0 %}
+                                <p class="mb-1"><span class="text-gray-600">Senior Citizens:</span> {{ booking.senior_passengers }}</p>
+                                {% endif %}
+                                {% endif %}
+
                                 {% if booking.booking_type == 'vehicle' %}
                                 <p class="mb-1"><span class="text-gray-600">Vehicle Type:</span> {{ booking.vehicle_type.name }}</p>
                                 <p class="mb-1"><span class="text-gray-600">Plate Number:</span> {{ booking.plate_number }}</p>
                                 <p class="mb-1"><span class="text-gray-600">Occupants:</span> {{ booking.occupant_count }}</p>
                                 <p class="mb-1"><span class="text-gray-600">Cargo Weight:</span> {{ booking.cargo_weight }} tons</p>
                                 {% endif %}
-                                
+
                                 <p class="mb-1"><span class="text-gray-600">Amount Due:</span> <span class="font-bold">₱{{ payment_amount }}</span></p>
                             </div>
                         </div>
-                        
+
                         <!-- QR Code and Instructions -->
                         <div class="flex items-center border-t pt-4">
                             <div class="mr-4">
@@ -174,17 +186,26 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Cash Payment Instructions -->
                     <div class="bg-blue-50 p-4 rounded-lg no-print">
                         <h3 class="font-medium text-blue-800 mb-2">Cash Payment Instructions</h3>
                         <p class="text-sm text-gray-700">
-                            Please pay the amount shown below at our ticket counter before your departure. 
+                            Please pay the amount shown below at our ticket counter before your departure.
                             Your booking is confirmed but payment is pending. Present your printed ticket or show the QR code at the counter.
                         </p>
                         <div class="mt-3 text-center">
                             <span class="text-2xl font-bold text-blue-800">₱{{ payment_amount }}</span>
                         </div>
+
+                        <form method="post" action="{% url 'mark_payment_complete' booking.booking_reference %}" class="mt-4">
+                            {% csrf_token %}
+                            <input type="hidden" name="payment_method" value="cash">
+                            <button type="submit" class="bg-blue-600 text-white rounded-lg px-6 py-3 hover:bg-blue-700 transition duration-300 w-full">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                Confirm Cash Payment
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -201,7 +222,7 @@
                                 <p class="text-sm text-gray-600 mb-1">Account Name: Maritime Booking System</p>
                                 <p class="text-sm text-gray-600 mb-1">Reference: {{ booking.booking_reference }}</p>
                                 <p class="text-xl font-bold text-green-600 mb-4">Amount: ₱{{ payment_amount }}</p>
-                                
+
                                 <form method="post" action="{% url 'mark_payment_complete' booking.booking_reference %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="payment_method" value="gcash">
@@ -216,73 +237,101 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Order Summary -->
         <div class="no-print">
             <div class="bg-white rounded-lg shadow-lg p-8 sticky top-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Booking Summary</h2>
-                
+
                 <div class="space-y-4">
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Booking Reference:</span>
                         <span class="font-medium">{{ booking.booking_reference }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Passenger Name:</span>
                         <span class="font-medium">{{ booking.full_name }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Trip:</span>
                         <span class="font-medium">{{ booking.schedule.route.origin }} to {{ booking.schedule.route.destination }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Departure:</span>
                         <span class="font-medium">{{ booking.schedule.departure_datetime|date:"F d, Y - h:i A" }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Booking Type:</span>
                         <span class="font-medium">{{ booking.get_booking_type_display }}</span>
                     </div>
-                    
+
                     {% if booking.booking_type == 'passenger' %}
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Number of Passengers:</span>
                         <span class="font-medium">{{ booking.number_of_passengers }}</span>
                     </div>
+
+                    {% if booking.adult_passengers > 0 %}
+                    <div class="flex justify-between pb-4 border-b">
+                        <span class="text-gray-600">Regular Adults:</span>
+                        <span class="font-medium">{{ booking.adult_passengers }} × ₱{{ booking.adult_fare_rate|floatformat:2 }}</span>
+                    </div>
                     {% endif %}
-                    
+
+                    {% if booking.child_passengers > 0 %}
+                    <div class="flex justify-between pb-4 border-b">
+                        <span class="text-gray-600">Children:</span>
+                        <span class="font-medium">{{ booking.child_passengers }} × ₱{{ booking.child_fare_rate|floatformat:2 }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if booking.student_passengers > 0 %}
+                    <div class="flex justify-between pb-4 border-b">
+                        <span class="text-gray-600">Students:</span>
+                        <span class="font-medium">{{ booking.student_passengers }} × ₱{{ booking.student_fare_rate|floatformat:2 }}</span>
+                    </div>
+                    {% endif %}
+
+                    {% if booking.senior_passengers > 0 %}
+                    <div class="flex justify-between pb-4 border-b">
+                        <span class="text-gray-600">Senior Citizens:</span>
+                        <span class="font-medium">{{ booking.senior_passengers }} × ₱{{ booking.senior_fare_rate|floatformat:2 }}</span>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+
                     {% if booking.booking_type == 'vehicle' %}
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Vehicle Type:</span>
                         <span class="font-medium">{{ booking.vehicle_type.name }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Plate Number:</span>
                         <span class="font-medium">{{ booking.plate_number }}</span>
                     </div>
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Occupants:</span>
                         <span class="font-medium">{{ booking.occupant_count }}</span>
                     </div>
                     {% endif %}
-                    
+
                     <div class="flex justify-between pb-4 border-b">
                         <span class="text-gray-600">Payment Status:</span>
                         <span class="font-medium text-orange-600">Pending - Cash on Arrival</span>
                     </div>
-                    
+
                     <div class="flex justify-between pt-2 text-lg font-bold">
                         <span>Total Amount:</span>
                         <span>₱{{ payment_amount }}</span>
                     </div>
                 </div>
-                
+
                 <div class="mt-6">
                     <a href="{% url 'home' %}" class="block text-center bg-gray-200 text-gray-800 rounded-lg px-6 py-3 hover:bg-gray-300 transition duration-300">
                         Return to Home
@@ -306,7 +355,7 @@
                 <p style="font-weight: bold; margin: 0;">{{ booking.booking_reference }}</p>
             </div>
         </div>
-        
+
         <div style="margin-bottom: 15px;">
             <div style="display: flex; justify-content: space-between;">
                 <div style="width: 48%;">
@@ -323,28 +372,40 @@
                 </div>
             </div>
         </div>
-        
+
         <div style="margin-bottom: 15px;">
             <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">Booking Details</h3>
             <div style="display: flex; flex-wrap: wrap;">
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Booking Type:</span> {{ booking.get_booking_type_display }}</p>
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Payment Status:</span> <span style="color: #f97316; font-weight: 500;">Pending - Cash on Arrival</span></p>
-                
+
                 {% if booking.booking_type == 'passenger' %}
-                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Passengers:</span> {{ booking.number_of_passengers }}</p>
+                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Total Passengers:</span> {{ booking.number_of_passengers }}</p>
+                {% if booking.adult_passengers > 0 %}
+                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Regular Adults:</span> {{ booking.adult_passengers }} × ₱{{ booking.adult_fare_rate|floatformat:2 }}</p>
                 {% endif %}
-                
+                {% if booking.child_passengers > 0 %}
+                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Children:</span> {{ booking.child_passengers }} × ₱{{ booking.child_fare_rate|floatformat:2 }}</p>
+                {% endif %}
+                {% if booking.student_passengers > 0 %}
+                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Students:</span> {{ booking.student_passengers }} × ₱{{ booking.student_fare_rate|floatformat:2 }}</p>
+                {% endif %}
+                {% if booking.senior_passengers > 0 %}
+                <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Senior Citizens:</span> {{ booking.senior_passengers }} × ₱{{ booking.senior_fare_rate|floatformat:2 }}</p>
+                {% endif %}
+                {% endif %}
+
                 {% if booking.booking_type == 'vehicle' %}
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Vehicle Type:</span> {{ booking.vehicle_type.name }}</p>
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Plate Number:</span> {{ booking.plate_number }}</p>
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Occupants:</span> {{ booking.occupant_count }}</p>
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Cargo Weight:</span> {{ booking.cargo_weight }} tons</p>
                 {% endif %}
-                
+
                 <p style="margin: 2px 0; width: 50%;"><span style="color: #666;">Amount Due:</span> <span style="font-weight: bold;">₱{{ payment_amount }}</span></p>
             </div>
         </div>
-        
+
         <div style="display: flex; border-top: 1px solid #000; padding-top: 10px;">
             <div style="margin-right: 15px;">
                 <img src="{{ booking.qr_code.url }}" alt="Booking QR Code" style="width: 100px; height: 100px;">

@@ -4,8 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.db import models
-from django.http import JsonResponse, HttpResponse
-from .models import Booking, Vessel, Schedule, Payment, VehicleType, Rating, Route, ContactMessage, TravelGuideline, Passenger
+from django.http import JsonResponse, HttpResponse, QueryDict
+from .models import Booking, Vessel, Schedule, Payment, VehicleType, Vehicle, Rating, Route, ContactMessage, TravelGuideline, Passenger
 from django.urls import reverse
 from .forms import BookingForm, RouteForm, UserRegistrationForm
 from django.shortcuts import render
@@ -367,36 +367,61 @@ def mark_payment_complete(request, booking_reference):
             booking = get_object_or_404(Booking, booking_reference=booking_reference)
             payment_method = request.POST.get('payment_method', 'online')
 
-            # Calculate payment amount based on booking type
-            payment_amount = 0
-            if booking.booking_type == 'passenger':
-                # Example: $50 per passenger
-                payment_amount = 50 * booking.number_of_passengers
-            elif booking.booking_type == 'vehicle':
-                # Base price for vehicle + additional for passengers
-                base_price = booking.vehicle_type.price if booking.vehicle_type else 100
-                payment_amount = base_price + (20 * booking.occupant_count)
+            print(f"Processing payment completion for booking: {booking_reference}")
+            print(f"Booking type: {booking.booking_type}")
+
+            # Use the total_fare that was already calculated and stored in the booking
+            if hasattr(booking, 'total_fare') and booking.total_fare:
+                payment_amount = booking.total_fare
+                print(f"Using stored total_fare: {payment_amount}")
+            else:
+                # Calculate payment amount based on booking type as fallback
+                if booking.booking_type == 'passenger':
+                    adult_passengers = int(booking.adult_passengers or 0)
+                    child_passengers = int(booking.child_passengers or 0)
+                    adult_fare = booking.schedule.adult_fare or Decimal('0.00')
+                    child_fare = booking.schedule.child_fare or Decimal('0.00')
+                    payment_amount = (adult_passengers * adult_fare) + (child_passengers * child_fare)
+                    print(f"Calculated passenger fare: {payment_amount}")
+                elif booking.booking_type == 'vehicle':
+                    # Use the base_fare from vehicle_type
+                    if booking.vehicle_type:
+                        payment_amount = booking.vehicle_type.base_fare
+                        print(f"Using vehicle base fare: {payment_amount}")
+                    else:
+                        payment_amount = Decimal('0.00')
+                        print("Warning: Vehicle booking without vehicle type")
 
             # Create payment record
             payment = Payment.objects.create(
                 booking=booking,
                 amount_paid=payment_amount,
-                payment_method=payment_method
+                payment_method=payment_method,
+                payment_date=timezone.now(),
+                payment_reference=f"PAY-{timezone.now().strftime('%Y%m%d')}-{booking_reference[-6:]}"
             )
+            print(f"Created payment record: {payment.id}")
 
             # Update booking status
             booking.is_paid = True
             booking.save()
+            print(f"Marked booking as paid: {booking.is_paid}")
 
             messages.success(request, "Payment successful! Your booking is confirmed.")
+            print(f"Redirecting to booking confirmation: {booking_reference}")
             return redirect('booking_confirmation', booking_reference=booking.booking_reference)
 
         except Booking.DoesNotExist:
+            print(f"Booking not found: {booking_reference}")
             messages.error(request, "Invalid booking reference.")
             return redirect('home')
+        except Exception as e:
+            print(f"Error processing payment: {str(e)}")
+            messages.error(request, f"Error processing payment: {str(e)}")
+            return redirect('payment', booking_reference=booking_reference)
 
     # If not POST, redirect to payment page
-    return redirect('payment_view')
+    return redirect('payment', booking_reference=booking_reference)
 import qrcode
 from django.http import HttpResponse
 from io import BytesIO
@@ -486,6 +511,10 @@ def process_payment_htmx(request):
 
         booking = get_object_or_404(Booking, booking_reference=booking_reference)
         logger.debug(f"Found booking - Customer: {booking.full_name}, Contact: {booking.contact_number}")
+        logger.debug(f"Booking type: {booking.booking_type}")
+
+        if booking.booking_type == 'vehicle' and booking.vehicle_type:
+            logger.debug(f"Vehicle type: {booking.vehicle_type.name}, Base fare: {booking.vehicle_type.base_fare}")
 
         if amount_received < total_amount:
             logger.warning(f"Insufficient payment - Expected: ₱{total_amount}, Received: ₱{amount_received}")
@@ -505,7 +534,6 @@ def process_payment_htmx(request):
 
         # Update booking status
         booking.is_paid = True
-        booking.payment = payment
         booking.save()
         logger.info("Booking marked as paid")
 
@@ -822,11 +850,20 @@ def process_specific_payment(request, booking_reference):
         if booking.booking_type == 'passenger':
             adult_total = booking.adult_passengers * booking.schedule.adult_fare
             child_total = booking.child_passengers * booking.schedule.child_fare
-            total_amount = adult_total + child_total
+
+            # Calculate student and senior fare totals
+            student_fare = booking.schedule.student_fare if booking.schedule.student_fare is not None else booking.schedule.adult_fare
+            senior_fare = booking.schedule.senior_fare if booking.schedule.senior_fare is not None else booking.schedule.adult_fare
+            student_total = booking.student_passengers * student_fare
+            senior_total = booking.senior_passengers * senior_fare
+
+            total_amount = adult_total + child_total + student_total + senior_total
 
             # Store these values for display in the template
             booking.adult_fare_total = adult_total
             booking.child_fare_total = child_total
+            booking.student_fare_total = student_total
+            booking.senior_fare_total = senior_total
         elif booking.booking_type == 'vehicle' and booking.vehicle_type:
             total_amount = booking.vehicle_type.base_fare
         else:
@@ -1133,9 +1170,17 @@ def booking_details_html(request):
         if booking.booking_type == 'passenger':
             adult_fare = booking.schedule.adult_fare or Decimal('0')
             child_fare = booking.schedule.child_fare or Decimal('0')
+
+            # Calculate student and senior fare totals
+            student_fare = booking.schedule.student_fare if booking.schedule.student_fare is not None else adult_fare
+            senior_fare = booking.schedule.senior_fare if booking.schedule.senior_fare is not None else adult_fare
+
             booking.adult_fare_total = adult_fare * booking.adult_passengers
             booking.child_fare_total = child_fare * booking.child_passengers
-            total_amount = booking.adult_fare_total + booking.child_fare_total
+            booking.student_fare_total = student_fare * booking.student_passengers
+            booking.senior_fare_total = senior_fare * booking.senior_passengers
+
+            total_amount = booking.adult_fare_total + booking.child_fare_total + booking.student_fare_total + booking.senior_fare_total
         else:  # vehicle booking
             if booking.vehicle_type:
                 # Calculate vehicle fare including base fare and additional charges
@@ -1251,8 +1296,35 @@ def ratings(request):
 
 def booking_detail(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id)
+
+    # Calculate total amount based on booking type
+    if booking.booking_type == 'passenger':
+        adult_total = booking.adult_passengers * booking.schedule.adult_fare
+        child_total = booking.child_passengers * booking.schedule.child_fare
+
+        # Calculate student and senior fare totals
+        student_fare = booking.schedule.student_fare if booking.schedule.student_fare is not None else booking.schedule.adult_fare
+        senior_fare = booking.schedule.senior_fare if booking.schedule.senior_fare is not None else booking.schedule.adult_fare
+        student_total = booking.student_passengers * student_fare
+        senior_total = booking.senior_passengers * senior_fare
+
+        total_amount = adult_total + child_total + student_total + senior_total
+
+        # Store these values for display in the template
+        booking.adult_fare_total = adult_total
+        booking.child_fare_total = child_total
+        booking.student_fare_total = student_total
+        booking.senior_fare_total = senior_total
+    elif booking.booking_type == 'vehicle' and booking.vehicle_type:
+        total_amount = booking.vehicle_type.base_fare
+        # Store the vehicle fare for display in the template
+        booking.vehicle_fare_total = total_amount
+    else:
+        total_amount = 0
+
     return TemplateResponse(request, 'dashboard/partials/booking_details.html', {
-        'booking': booking
+        'booking': booking,
+        'total_amount': total_amount
     })
 
 def booking_delete(request, booking_id):
@@ -1285,10 +1357,19 @@ def booking(request):
             messages.error(request, "The selected schedule does not exist.")
             return redirect('booking')
 
+    # Get user information if authenticated
+    user_info = {}
+    if request.user.is_authenticated:
+        user_info = {
+            'full_name': f"{request.user.first_name} {request.user.last_name}".strip(),
+            'email': request.user.email
+        }
+
     context = {
         'schedules': schedules,
         'vehicle_types': vehicle_types,
         'selected_schedule': selected_schedule,
+        'user_info': user_info
     }
 
     return render(request, 'booking.html', context)
@@ -1352,12 +1433,20 @@ def payment_view(request, booking_reference):
             print(f"Vehicle base fare: {base_fare}")  # Debug log
             payment_amount = base_fare
 
+            # Store the payment amount in the booking for later reference
+            booking.total_fare = payment_amount
+            booking.save(update_fields=['total_fare'])
+
         elif booking.booking_type == 'passenger':
             adult_passengers = int(booking.adult_passengers or 0)
             child_passengers = int(booking.child_passengers or 0)
             adult_fare = booking.schedule.adult_fare or Decimal('0.00')
             child_fare = booking.schedule.child_fare or Decimal('0.00')
             payment_amount = (adult_passengers * adult_fare) + (child_passengers * child_fare)
+
+            # Store the payment amount in the booking for later reference
+            booking.total_fare = payment_amount
+            booking.save(update_fields=['total_fare'])
 
         print(f"Final payment amount: {payment_amount}")  # Debug log
 
@@ -1413,8 +1502,24 @@ def reports_view(request):
     selected_route = request.GET.get('route', '')
     selected_vessel = request.GET.get('vessel', '')
 
+    # Get passenger boarding list specific filters
+    departure_date = request.GET.get('departure_date', '')
+    selected_schedule = request.GET.get('schedule', '')
+    selected_passenger_type = request.GET.get('passenger_type', '')
+
+    # Get revenue report specific filters
+    selected_payment_method = request.GET.get('payment_method', '')
+    selected_booking_type = request.GET.get('booking_type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+
     routes = Route.objects.filter(active=True)
     vessels = Vessel.objects.filter(active=True)
+
+    # Get upcoming schedules for the boarding list filter dropdown
+    schedules = Schedule.objects.select_related('route', 'vessel').filter(
+        departure_datetime__gte=timezone.now()
+    ).order_by('departure_datetime')[:30]  # Limit to next 30 schedules
 
     # Base queryset for the selected month
     bookings = Booking.objects.filter(
@@ -1428,6 +1533,27 @@ def reports_view(request):
         bookings = bookings.filter(schedule__route_id=selected_route)
     if selected_vessel:
         bookings = bookings.filter(schedule__vessel_id=selected_vessel)
+
+    # Apply revenue report specific filters
+    if selected_booking_type:
+        bookings = bookings.filter(booking_type=selected_booking_type)
+
+    # Date range filters for revenue report
+    if date_from:
+        try:
+            date_from_obj = timezone.datetime.strptime(date_from, '%Y-%m-%d').date()
+            bookings = bookings.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            # Invalid date format, ignore filter
+            pass
+
+    if date_to:
+        try:
+            date_to_obj = timezone.datetime.strptime(date_to, '%Y-%m-%d').date()
+            bookings = bookings.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            # Invalid date format, ignore filter
+            pass
 
     # Calculate monthly metrics
     monthly_bookings_count = bookings.count()
@@ -1513,13 +1639,152 @@ def reports_view(request):
         revenue_data.append(float(month_revenue))
         revenue_labels.append(date.strftime('%b %Y'))
 
+    # Get passenger boarding list data
+    passenger_list_query = Passenger.objects.select_related(
+        'booking',
+        'booking__schedule',
+        'booking__schedule__route',
+        'booking__schedule__vessel'
+    ).filter(
+        booking__is_paid=True
+    )
+
+    # Apply boarding list specific filters
+    if departure_date:
+        try:
+            departure_date_obj = timezone.datetime.strptime(departure_date, '%Y-%m-%d').date()
+            passenger_list_query = passenger_list_query.filter(
+                booking__schedule__departure_datetime__date=departure_date_obj
+            )
+        except ValueError:
+            # Invalid date format, ignore filter
+            pass
+
+    if selected_schedule:
+        passenger_list_query = passenger_list_query.filter(
+            booking__schedule_id=selected_schedule
+        )
+
+    if selected_passenger_type:
+        passenger_list_query = passenger_list_query.filter(
+            passenger_type=selected_passenger_type
+        )
+
+    # Apply the same route and vessel filters as the main report
+    if selected_route:
+        passenger_list_query = passenger_list_query.filter(
+            booking__schedule__route_id=selected_route
+        )
+
+    if selected_vessel:
+        passenger_list_query = passenger_list_query.filter(
+            booking__schedule__vessel_id=selected_vessel
+        )
+
+    # Order by departure date and passenger name
+    passenger_list = passenger_list_query.order_by(
+        'booking__schedule__departure_datetime',
+        'full_name'
+    )
+
+    # Get revenue breakdown data
+
+    # 1. Revenue by booking type
+    passenger_revenue = bookings.filter(booking_type='passenger').aggregate(
+        total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+    )['total']
+
+    vehicle_revenue = bookings.filter(booking_type='vehicle').aggregate(
+        total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+    )['total']
+
+    # Calculate percentages
+    total_revenue = passenger_revenue + vehicle_revenue
+    passenger_revenue_percent = round((passenger_revenue / total_revenue) * 100) if total_revenue > 0 else 0
+    vehicle_revenue_percent = round((vehicle_revenue / total_revenue) * 100) if total_revenue > 0 else 0
+
+    # 2. Revenue by payment method
+    payments = Payment.objects.filter(
+        booking__in=bookings
+    )
+
+    # Apply payment method filter if selected
+    if selected_payment_method:
+        payments = payments.filter(payment_method=selected_payment_method)
+
+    cash_payments = payments.filter(payment_method='cash')
+    gcash_payments = payments.filter(payment_method='gcash')
+
+    cash_payment_count = cash_payments.count()
+    gcash_payment_count = gcash_payments.count()
+
+    cash_revenue = cash_payments.aggregate(
+        total=Coalesce(Sum('amount_paid'), Value(0, output_field=DecimalField()))
+    )['total']
+
+    gcash_revenue = gcash_payments.aggregate(
+        total=Coalesce(Sum('amount_paid'), Value(0, output_field=DecimalField()))
+    )['total']
+
+    # Calculate percentages
+    payment_total = cash_revenue + gcash_revenue
+    cash_revenue_percent = round((cash_revenue / payment_total) * 100) if payment_total > 0 else 0
+    gcash_revenue_percent = round((gcash_revenue / payment_total) * 100) if payment_total > 0 else 0
+
+    # 3. Revenue by passenger type
+    # Get all passengers from the filtered bookings
+    passengers = Passenger.objects.filter(booking__in=bookings)
+
+    # Count by passenger type
+    adult_count = passengers.filter(passenger_type='adult').count()
+    child_count = passengers.filter(passenger_type='child').count()
+    student_count = passengers.filter(passenger_type='student').count()
+    senior_count = passengers.filter(passenger_type='senior').count()
+
+    # Calculate revenue by passenger type
+    # This is an approximation based on the fare rates and passenger counts
+    adult_revenue = Decimal('0.00')
+    child_revenue = Decimal('0.00')
+    student_revenue = Decimal('0.00')
+    senior_revenue = Decimal('0.00')
+
+    for booking in bookings.filter(booking_type='passenger'):
+        # Get passengers for this booking
+        booking_passengers = Passenger.objects.filter(booking=booking)
+
+        # Count by type
+        booking_adult_count = booking_passengers.filter(passenger_type='adult').count()
+        booking_child_count = booking_passengers.filter(passenger_type='child').count()
+        booking_student_count = booking_passengers.filter(passenger_type='student').count()
+        booking_senior_count = booking_passengers.filter(passenger_type='senior').count()
+
+        # Get fare rates
+        adult_rate = booking.adult_fare_rate or Decimal('0.00')
+        child_rate = booking.child_fare_rate or Decimal('0.00')
+        student_rate = booking.student_fare_rate or Decimal('0.00')
+        senior_rate = booking.senior_fare_rate or Decimal('0.00')
+
+        # Calculate revenue by type
+        adult_revenue += booking_adult_count * adult_rate
+        child_revenue += booking_child_count * child_rate
+        student_revenue += booking_student_count * student_rate
+        senior_revenue += booking_senior_count * senior_rate
+
     context = {
         'month': month,
         'year': year,
         'routes': routes,
         'vessels': vessels,
+        'schedules': schedules,
         'selected_route': selected_route,
         'selected_vessel': selected_vessel,
+        'selected_schedule': selected_schedule,
+        'selected_passenger_type': selected_passenger_type,
+        'departure_date': departure_date,
+        'selected_payment_method': selected_payment_method,
+        'selected_booking_type': selected_booking_type,
+        'date_from': date_from,
+        'date_to': date_to,
         'monthly_bookings_count': monthly_bookings_count,
         'monthly_revenue': monthly_revenue,
         'booking_growth': booking_growth,
@@ -1528,7 +1793,32 @@ def reports_view(request):
         'occupancy_rate': occupancy_rate,
         'route_performance': route_performance,
         'revenue_data': revenue_data,
-        'revenue_labels': revenue_labels
+        'revenue_labels': revenue_labels,
+        'passenger_list': passenger_list,
+
+        # Revenue breakdown data
+        'passenger_revenue': passenger_revenue,
+        'vehicle_revenue': vehicle_revenue,
+        'passenger_revenue_percent': passenger_revenue_percent,
+        'vehicle_revenue_percent': vehicle_revenue_percent,
+
+        # Payment method data
+        'cash_payment_count': cash_payment_count,
+        'gcash_payment_count': gcash_payment_count,
+        'cash_revenue': cash_revenue,
+        'gcash_revenue': gcash_revenue,
+        'cash_revenue_percent': cash_revenue_percent,
+        'gcash_revenue_percent': gcash_revenue_percent,
+
+        # Passenger type data
+        'adult_count': adult_count,
+        'child_count': child_count,
+        'student_count': student_count,
+        'senior_count': senior_count,
+        'adult_revenue': adult_revenue,
+        'child_revenue': child_revenue,
+        'student_revenue': student_revenue,
+        'senior_revenue': senior_revenue
     }
 
     return render(request, 'dashboard/reports.html', context)
@@ -1897,6 +2187,8 @@ def booking_detail(request, booking_id):
         booking.child_fare_total = child_total
     elif booking.booking_type == 'vehicle' and booking.vehicle_type:
         total_amount = booking.vehicle_type.base_fare
+        # Store the vehicle fare for display in the template
+        booking.vehicle_fare_total = total_amount
     else:
         total_amount = 0
 
@@ -1974,14 +2266,18 @@ def create_booking(request):
     try:
         # Get selected schedule
         schedule_id = request.POST.get('schedule')
+        print(f"Received schedule_id: {schedule_id}")
+
         if not schedule_id:
             messages.error(request, "No schedule selected.")
             return redirect('booking')
 
         schedule = get_object_or_404(Schedule, id=schedule_id)
+        print(f"Found schedule: {schedule}")
 
         # Get common booking data
         booking_type = request.POST.get('booking_type', 'passenger')
+        print(f"Booking type: {booking_type}")
 
         # Create new booking with common fields
         booking = Booking(
@@ -1998,23 +2294,62 @@ def create_booking(request):
         if booking_type == 'passenger':
             booking.adult_passengers = int(request.POST.get('adult_passengers', 0) or 0)
             booking.child_passengers = int(request.POST.get('child_passengers', 0) or 0)
-            booking.number_of_passengers = booking.adult_passengers + booking.child_passengers
+            booking.student_passengers = int(request.POST.get('student_passengers', 0) or 0)
+            booking.senior_passengers = int(request.POST.get('senior_passengers', 0) or 0)
+
+            booking.number_of_passengers = (
+                booking.adult_passengers +
+                booking.child_passengers +
+                booking.student_passengers +
+                booking.senior_passengers
+            )
+
             booking.adult_fare_rate = schedule.adult_fare
             booking.child_fare_rate = schedule.child_fare
+            booking.student_fare_rate = schedule.student_fare
+            booking.senior_fare_rate = schedule.senior_fare
+
+            print(f"Passenger booking - Adults: {booking.adult_passengers}, Children: {booking.child_passengers}, Students: {booking.student_passengers}, Seniors: {booking.senior_passengers}")
+            print(f"Adult fare: {booking.adult_fare_rate}, Child fare: {booking.child_fare_rate}, Student fare: {booking.student_fare_rate}, Senior fare: {booking.senior_fare_rate}")
+
         else:  # vehicle booking
             vehicle_type_id = request.POST.get('vehicle_type')
-            if vehicle_type_id:
-                booking.vehicle_type = get_object_or_404(VehicleType, id=vehicle_type_id)
+            print(f"Vehicle type ID: {vehicle_type_id}")
 
-            booking.plate_number = request.POST.get('plate_number', '')
-            booking.occupant_count = int(request.POST.get('occupant_count', 1) or 1)
-            booking.cargo_weight = Decimal(request.POST.get('cargo_weight', 0) or 0)
-            # Set fare rates to 0 for vehicle bookings to satisfy NOT NULL constraint
-            booking.adult_fare_rate = Decimal('0.00')
-            booking.child_fare_rate = Decimal('0.00')
+            if not vehicle_type_id:
+                messages.error(request, "Please select a vehicle type.")
+                return redirect('booking')
+
+            try:
+                vehicle_type = get_object_or_404(VehicleType, id=vehicle_type_id)
+                print(f"Found vehicle type: {vehicle_type.name}, base fare: {vehicle_type.base_fare}")
+
+                booking.vehicle_type = vehicle_type
+                booking.plate_number = request.POST.get('plate_number', '')
+                booking.occupant_count = int(request.POST.get('occupant_count', 1) or 1)
+                booking.cargo_weight = Decimal(request.POST.get('cargo_weight', 0) or 0)
+
+                print(f"Vehicle details - Plate: {booking.plate_number}, Occupants: {booking.occupant_count}, Cargo: {booking.cargo_weight}")
+
+                # Set fare rates to 0 for vehicle bookings to satisfy NOT NULL constraint
+                booking.adult_fare_rate = Decimal('0.00')
+                booking.child_fare_rate = Decimal('0.00')
+
+                # Set total_fare to vehicle_type.base_fare
+                booking.total_fare = vehicle_type.base_fare
+                print(f"Setting total fare to: {booking.total_fare}")
+
+                # Set number_of_passengers to occupant_count for vehicle bookings
+                booking.number_of_passengers = booking.occupant_count
+
+            except VehicleType.DoesNotExist:
+                print(f"Vehicle type not found: {vehicle_type_id}")
+                messages.error(request, "Selected vehicle type does not exist.")
+                return redirect('booking')
 
         # Save the booking
         booking.save()
+        print(f"Booking saved with ID: {booking.id}")
 
         # Save individual passenger information if it's a passenger booking
         if booking_type == 'passenger':
@@ -2038,11 +2373,40 @@ def create_booking(request):
                         passenger_type='child'
                     )
 
+            # Process student passengers
+            for i in range(1, booking.student_passengers + 1):
+                passenger_name = request.POST.get(f'student_passenger_name_{i}')
+                if passenger_name:
+                    Passenger.objects.create(
+                        booking=booking,
+                        full_name=passenger_name,
+                        passenger_type='student'
+                    )
+
+            # Process senior passengers
+            for i in range(1, booking.senior_passengers + 1):
+                passenger_name = request.POST.get(f'senior_passenger_name_{i}')
+                if passenger_name:
+                    Passenger.objects.create(
+                        booking=booking,
+                        full_name=passenger_name,
+                        passenger_type='senior'
+                    )
+
+        # Log the booking details for debugging
+        print(f"Created booking: {booking.booking_reference}, Type: {booking.booking_type}")
+        if booking_type == 'vehicle':
+            print(f"Vehicle Type: {booking.vehicle_type.name if booking.vehicle_type else 'None'}")
+            print(f"Plate Number: {booking.plate_number}")
+            print(f"Occupants: {booking.occupant_count}")
+            print(f"Cargo Weight: {booking.cargo_weight}")
+
         # Redirect to payment
         messages.success(request, "Booking created successfully. Please complete your payment.")
         return redirect('payment', booking_reference=booking.booking_reference)
 
     except Exception as e:
+        print(f"Error creating booking: {str(e)}")
         messages.error(request, f"Error creating booking: {str(e)}")
         return redirect('booking')
 
@@ -2079,22 +2443,72 @@ def calculate_fare(request):
 
         adult_count = int(request.GET.get('adult_passengers', 0))
         child_count = int(request.GET.get('child_passengers', 0))
+        student_count = int(request.GET.get('student_passengers', 0))
+        senior_count = int(request.GET.get('senior_passengers', 0))
 
         try:
             schedule = Schedule.objects.get(id=schedule_id)
             adult_total = schedule.adult_fare * adult_count
             child_total = schedule.child_fare * child_count
-            total = adult_total + child_total
+
+            # Handle student and senior fares, using adult fare as fallback if not set
+            student_fare = schedule.student_fare if schedule.student_fare is not None else schedule.adult_fare
+            senior_fare = schedule.senior_fare if schedule.senior_fare is not None else schedule.adult_fare
+
+            student_total = student_fare * student_count
+            senior_total = senior_fare * senior_count
+
+            total = adult_total + child_total + student_total + senior_total
 
             return render(request, 'partials/fare_summary.html', {
                 'adult_total': adult_total,
                 'child_total': child_total,
-                'total': total
+                'student_total': student_total,
+                'senior_total': senior_total,
+                'total': total,
+                'adult_fare': schedule.adult_fare,
+                'child_fare': schedule.child_fare,
+                'student_fare': student_fare,
+                'senior_fare': senior_fare
             })
         except Schedule.DoesNotExist:
             return HttpResponse("Selected schedule not found")
     except Exception as e:
         return HttpResponse(f"Error calculating fare: {str(e)}")
+
+def calculate_vehicle_fare(request):
+    """HTMX endpoint for calculating vehicle fares"""
+    try:
+        vehicle_type_id = request.GET.get('vehicle_type')
+        if not vehicle_type_id:
+            return HttpResponse("Please select a vehicle type")
+
+        # Log the request for debugging
+        print(f"Calculating vehicle fare for vehicle type ID: {vehicle_type_id}")
+
+        vehicle_type = get_object_or_404(VehicleType, id=vehicle_type_id)
+        print(f"Found vehicle type: {vehicle_type.name}, base fare: {vehicle_type.base_fare}")
+
+        # Get base fare for the vehicle type
+        base_fare = vehicle_type.base_fare
+
+        # You can add additional calculations here based on your business logic
+        # For example, adding surcharges based on occupants, cargo weight, etc.
+
+        context = {
+            'vehicle_type': vehicle_type.name,
+            'base_fare': base_fare,
+            'total_fare': base_fare  # Modify this if you add surcharges
+        }
+
+        print(f"Rendering vehicle fare summary with context: {context}")
+        return render(request, 'partials/vehicle_fare_summary.html', context)
+    except VehicleType.DoesNotExist:
+        print(f"Vehicle type not found: {vehicle_type_id}")
+        return HttpResponse(f"Vehicle type not found. Please select a valid vehicle type.")
+    except Exception as e:
+        print(f"Error calculating vehicle fare: {str(e)}")
+        return HttpResponse(f"Error calculating vehicle fare: {str(e)}")
 
 
 def payment_view(request, booking_reference):
@@ -2102,28 +2516,60 @@ def payment_view(request, booking_reference):
         booking = Booking.objects.get(booking_reference=booking_reference)
         payment_amount = Decimal('0.00')
 
+        print(f"Processing payment for booking: {booking_reference}, type: {booking.booking_type}")
+
         if booking.booking_type == 'passenger':
             # Ensure we have valid numbers for calculation
             adult_passengers = int(booking.adult_passengers or 0)
             child_passengers = int(booking.child_passengers or 0)
+            student_passengers = int(booking.student_passengers or 0)
+            senior_passengers = int(booking.senior_passengers or 0)
+
             adult_fare = booking.schedule.adult_fare or Decimal('0.00')
             child_fare = booking.schedule.child_fare or Decimal('0.00')
+            student_fare = booking.schedule.student_fare or adult_fare
+            senior_fare = booking.schedule.senior_fare or adult_fare
 
-            payment_amount = (adult_passengers * adult_fare) + (child_passengers * child_fare)
+            adult_total = adult_passengers * adult_fare
+            child_total = child_passengers * child_fare
+            student_total = student_passengers * student_fare
+            senior_total = senior_passengers * senior_fare
+
+            payment_amount = adult_total + child_total + student_total + senior_total
+
+            print(f"Passenger booking - Adults: {adult_passengers} x ₱{adult_fare} = ₱{adult_total}")
+            print(f"Passenger booking - Children: {child_passengers} x ₱{child_fare} = ₱{child_total}")
+            print(f"Passenger booking - Students: {student_passengers} x ₱{student_fare} = ₱{student_total}")
+            print(f"Passenger booking - Seniors: {senior_passengers} x ₱{senior_fare} = ₱{senior_total}")
+            print(f"Total payment amount: ₱{payment_amount}")
 
         elif booking.booking_type == 'vehicle':
             # Calculate vehicle fare
-            base_price = Decimal(str(booking.vehicle_type.base_fare)) if booking.vehicle_type else Decimal('0.00')
-            payment_amount = base_price
+            if booking.vehicle_type:
+                base_price = booking.vehicle_type.base_fare
+                print(f"Vehicle booking - Type: {booking.vehicle_type.name}, Base fare: ₱{base_price}")
+                payment_amount = base_price
+            else:
+                print("Warning: Vehicle booking without vehicle type")
+                payment_amount = Decimal('0.00')
+
+            print(f"Total payment amount: ₱{payment_amount}")
+
+        # Store the payment amount in the booking for later reference
+        booking.total_fare = payment_amount
+        booking.save(update_fields=['total_fare'])
+
         return render(request, 'payment.html', {
             'booking': booking,
             'payment_amount': payment_amount
         })
 
     except Booking.DoesNotExist:
+        print(f"Booking not found: {booking_reference}")
         messages.error(request, "Invalid booking reference.")
         return redirect('booking')
     except Exception as e:
+        print(f"Error processing payment: {str(e)}")
         messages.error(request, f"Error processing payment: {str(e)}")
         return redirect('booking')
 
@@ -2638,13 +3084,18 @@ def booking_view(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
 
     # Calculate total fare based on booking type
-    if booking.booking_type == 'vehicle':
-        total_fare = booking.vehicle_type.base_fare if booking.vehicle_type else 0
+    if booking.booking_type == 'vehicle' and booking.vehicle_type:
+        total_fare = booking.vehicle_type.base_fare
+        # Store the vehicle fare for display in the template
+        booking.vehicle_fare_total = total_fare
     else:
         total_fare = (
             booking.adult_passengers * booking.schedule.adult_fare +
             booking.child_passengers * booking.schedule.child_fare
         )
+        # Store these values for display in the template
+        booking.adult_fare_total = booking.adult_passengers * booking.schedule.adult_fare
+        booking.child_fare_total = booking.child_passengers * booking.schedule.child_fare
 
     context = {
         'booking': booking,
@@ -2676,11 +3127,13 @@ def booking_mark_paid(request, pk):
             return redirect('booking_view', pk=pk)
 
         # Calculate payment amount
-        payment_amount = (
-            booking.adult_passengers * booking.schedule.adult_fare +
-            booking.child_passengers * booking.schedule.child_fare +
-            (booking.vehicle_type.fare if booking.vehicle_type else 0)
-        )
+        if booking.booking_type == 'vehicle' and booking.vehicle_type:
+            payment_amount = booking.vehicle_type.base_fare
+        else:
+            payment_amount = (
+                booking.adult_passengers * booking.schedule.adult_fare +
+                booking.child_passengers * booking.schedule.child_fare
+            )
 
         # Create payment record
         Payment.objects.create(
@@ -2721,11 +3174,13 @@ def booking_print(request, pk):
     booking = get_object_or_404(Booking, pk=pk)
 
     # Calculate total fare
-    total_fare = (
-        booking.adult_passengers * booking.schedule.adult_fare +
-        booking.child_passengers * booking.schedule.child_fare +
-        (booking.vehicle_type.fare if booking.vehicle_type else 0)
-    )
+    if booking.booking_type == 'vehicle' and booking.vehicle_type:
+        total_fare = booking.vehicle_type.base_fare
+    else:
+        total_fare = (
+            booking.adult_passengers * booking.schedule.adult_fare +
+            booking.child_passengers * booking.schedule.child_fare
+        )
 
     context = {
         'booking': booking,
@@ -2979,42 +3434,270 @@ import csv
 def export_report(request):
     # Get filter parameters
     export_format = request.GET.get('format', 'pdf')
+    report_type = request.GET.get('report_type', 'financial')
     year = int(request.GET.get('year', timezone.now().year))
     month = int(request.GET.get('month', timezone.now().month))
     selected_route = request.GET.get('route', '')
     selected_vessel = request.GET.get('vessel', '')
 
-    # Base queryset for bookings
-    bookings = Booking.objects.filter(
-        created_at__year=year,
-        created_at__month=month,
-        is_paid=True
-    )
+    # Get passenger boarding list specific filters
+    departure_date = request.GET.get('departure_date', '')
+    selected_schedule = request.GET.get('schedule', '')
+    selected_passenger_type = request.GET.get('passenger_type', '')
 
-    # Apply filters
-    if selected_route:
-        bookings = bookings.filter(schedule__route_id=selected_route)
-    if selected_vessel:
-        bookings = bookings.filter(schedule__vessel_id=selected_vessel)
+    # Get revenue report specific filters
+    selected_payment_method = request.GET.get('payment_method', '')
+    selected_booking_type = request.GET.get('booking_type', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
 
-    # Prepare data for export
-    data = {
-        'month': timezone.datetime(year, month, 1).strftime('%B %Y'),
-        'user': request.user,
-        'generated_at': timezone.now(),
-        'bookings': bookings,
-        'booking_count': bookings.count(),
-        'total_revenue': bookings.aggregate(total=Sum('total_fare'))['total'] or 0,
-    }
+    if report_type == 'boarding':
+        # Export passenger boarding list
+        # Base queryset for passengers
+        passenger_list_query = Passenger.objects.select_related(
+            'booking',
+            'booking__schedule',
+            'booking__schedule__route',
+            'booking__schedule__vessel'
+        ).filter(
+            booking__is_paid=True
+        )
 
-    if export_format == 'pdf':
-        return export_pdf(data)
-    elif export_format == 'excel':
-        return export_excel(data)
-    elif export_format == 'csv':
-        return export_csv(data)
+        # Apply boarding list specific filters
+        if departure_date:
+            try:
+                departure_date_obj = timezone.datetime.strptime(departure_date, '%Y-%m-%d').date()
+                passenger_list_query = passenger_list_query.filter(
+                    booking__schedule__departure_datetime__date=departure_date_obj
+                )
+            except ValueError:
+                # Invalid date format, ignore filter
+                pass
+
+        if selected_schedule:
+            passenger_list_query = passenger_list_query.filter(
+                booking__schedule_id=selected_schedule
+            )
+
+        if selected_passenger_type:
+            passenger_list_query = passenger_list_query.filter(
+                passenger_type=selected_passenger_type
+            )
+
+        # Apply the same route and vessel filters as the main report
+        if selected_route:
+            passenger_list_query = passenger_list_query.filter(
+                booking__schedule__route_id=selected_route
+            )
+
+        if selected_vessel:
+            passenger_list_query = passenger_list_query.filter(
+                booking__schedule__vessel_id=selected_vessel
+            )
+
+        # Order by departure date and passenger name
+        passenger_list = passenger_list_query.order_by(
+            'booking__schedule__departure_datetime',
+            'full_name'
+        )
+
+        # Prepare data for export
+        data = {
+            'title': 'Passenger Boarding List',
+            'user': request.user,
+            'generated_at': timezone.now(),
+            'passenger_list': passenger_list,
+            'passenger_count': passenger_list.count(),
+        }
+
+        if export_format == 'pdf':
+            return export_boarding_pdf(data)
+        elif export_format == 'excel':
+            return export_boarding_excel(data)
+        elif export_format == 'csv':
+            return export_boarding_csv(data)
+        else:
+            return HttpResponse('Invalid export format', status=400)
+
+    elif report_type == 'revenue':
+        # Export comprehensive revenue report
+        # Base queryset for bookings
+        bookings = Booking.objects.filter(
+            schedule__departure_datetime__year=year,
+            schedule__departure_datetime__month=month,
+            is_paid=True
+        )
+
+        # Apply filters
+        if selected_route:
+            bookings = bookings.filter(schedule__route_id=selected_route)
+        if selected_vessel:
+            bookings = bookings.filter(schedule__vessel_id=selected_vessel)
+        if selected_booking_type:
+            bookings = bookings.filter(booking_type=selected_booking_type)
+
+        # Date range filters
+        if date_from:
+            try:
+                date_from_obj = timezone.datetime.strptime(date_from, '%Y-%m-%d').date()
+                bookings = bookings.filter(created_at__date__gte=date_from_obj)
+            except ValueError:
+                # Invalid date format, ignore filter
+                pass
+
+        if date_to:
+            try:
+                date_to_obj = timezone.datetime.strptime(date_to, '%Y-%m-%d').date()
+                bookings = bookings.filter(created_at__date__lte=date_to_obj)
+            except ValueError:
+                # Invalid date format, ignore filter
+                pass
+
+        # Get revenue breakdown data
+        # 1. Revenue by booking type
+        passenger_revenue = bookings.filter(booking_type='passenger').aggregate(
+            total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+        )['total']
+
+        vehicle_revenue = bookings.filter(booking_type='vehicle').aggregate(
+            total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+        )['total']
+
+        # 2. Revenue by payment method
+        payments = Payment.objects.filter(
+            booking__in=bookings
+        )
+
+        # Apply payment method filter if selected
+        if selected_payment_method:
+            payments = payments.filter(payment_method=selected_payment_method)
+
+        cash_payments = payments.filter(payment_method='cash')
+        gcash_payments = payments.filter(payment_method='gcash')
+
+        cash_payment_count = cash_payments.count()
+        gcash_payment_count = gcash_payments.count()
+
+        cash_revenue = cash_payments.aggregate(
+            total=Coalesce(Sum('amount_paid'), Value(0, output_field=DecimalField()))
+        )['total']
+
+        gcash_revenue = gcash_payments.aggregate(
+            total=Coalesce(Sum('amount_paid'), Value(0, output_field=DecimalField()))
+        )['total']
+
+        # 3. Revenue by passenger type
+        # Get all passengers from the filtered bookings
+        passengers = Passenger.objects.filter(booking__in=bookings)
+
+        # Count by passenger type
+        adult_count = passengers.filter(passenger_type='adult').count()
+        child_count = passengers.filter(passenger_type='child').count()
+        student_count = passengers.filter(passenger_type='student').count()
+        senior_count = passengers.filter(passenger_type='senior').count()
+
+        # Calculate revenue by passenger type
+        # This is an approximation based on the fare rates and passenger counts
+        adult_revenue = Decimal('0.00')
+        child_revenue = Decimal('0.00')
+        student_revenue = Decimal('0.00')
+        senior_revenue = Decimal('0.00')
+
+        for booking in bookings.filter(booking_type='passenger'):
+            # Get passengers for this booking
+            booking_passengers = Passenger.objects.filter(booking=booking)
+
+            # Count by type
+            booking_adult_count = booking_passengers.filter(passenger_type='adult').count()
+            booking_child_count = booking_passengers.filter(passenger_type='child').count()
+            booking_student_count = booking_passengers.filter(passenger_type='student').count()
+            booking_senior_count = booking_passengers.filter(passenger_type='senior').count()
+
+            # Get fare rates
+            adult_rate = booking.adult_fare_rate or Decimal('0.00')
+            child_rate = booking.child_fare_rate or Decimal('0.00')
+            student_rate = booking.student_fare_rate or Decimal('0.00')
+            senior_rate = booking.senior_fare_rate or Decimal('0.00')
+
+            # Calculate revenue by type
+            adult_revenue += booking_adult_count * adult_rate
+            child_revenue += booking_child_count * child_rate
+            student_revenue += booking_student_count * student_rate
+            senior_revenue += booking_senior_count * senior_rate
+
+        # Prepare data for export
+        data = {
+            'title': 'Comprehensive Revenue Report',
+            'month': timezone.datetime(year, month, 1).strftime('%B %Y'),
+            'user': request.user,
+            'generated_at': timezone.now(),
+            'bookings': bookings,
+            'booking_count': bookings.count(),
+            'total_revenue': passenger_revenue + vehicle_revenue,
+
+            # Revenue breakdown data
+            'passenger_revenue': passenger_revenue,
+            'vehicle_revenue': vehicle_revenue,
+
+            # Payment method data
+            'cash_payment_count': cash_payment_count,
+            'gcash_payment_count': gcash_payment_count,
+            'cash_revenue': cash_revenue,
+            'gcash_revenue': gcash_revenue,
+
+            # Passenger type data
+            'adult_count': adult_count,
+            'child_count': child_count,
+            'student_count': student_count,
+            'senior_count': senior_count,
+            'adult_revenue': adult_revenue,
+            'child_revenue': child_revenue,
+            'student_revenue': student_revenue,
+            'senior_revenue': senior_revenue
+        }
+
+        if export_format == 'pdf':
+            return export_revenue_pdf(data)
+        elif export_format == 'excel':
+            return export_revenue_excel(data)
+        elif export_format == 'csv':
+            return export_revenue_csv(data)
+        else:
+            return HttpResponse('Invalid export format', status=400)
+
     else:
-        return HttpResponse('Invalid export format', status=400)
+        # Export financial report (default)
+        # Base queryset for bookings
+        bookings = Booking.objects.filter(
+            created_at__year=year,
+            created_at__month=month,
+            is_paid=True
+        )
+
+        # Apply filters
+        if selected_route:
+            bookings = bookings.filter(schedule__route_id=selected_route)
+        if selected_vessel:
+            bookings = bookings.filter(schedule__vessel_id=selected_vessel)
+
+        # Prepare data for export
+        data = {
+            'month': timezone.datetime(year, month, 1).strftime('%B %Y'),
+            'user': request.user,
+            'generated_at': timezone.now(),
+            'bookings': bookings,
+            'booking_count': bookings.count(),
+            'total_revenue': bookings.aggregate(total=Sum('total_fare'))['total'] or 0,
+        }
+
+        if export_format == 'pdf':
+            return export_pdf(data)
+        elif export_format == 'excel':
+            return export_excel(data)
+        elif export_format == 'csv':
+            return export_csv(data)
+        else:
+            return HttpResponse('Invalid export format', status=400)
 
 def export_csv(data):
     response = HttpResponse(content_type='text/csv')
@@ -3048,6 +3731,386 @@ def export_csv(data):
             f"₱{booking.total_fare:,.2f}"
         ])
 
+    return response
+
+def export_boarding_csv(data):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename=passenger_boarding_list_{timezone.now().strftime("%Y%m%d_%H%M")}.csv'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Booking Reference',
+        'Passenger Name',
+        'Passenger Type',
+        'Route',
+        'Departure Date/Time',
+        'Vessel',
+        'Status'
+    ])
+
+    for passenger in data['passenger_list']:
+        writer.writerow([
+            passenger.booking.booking_reference,
+            passenger.full_name,
+            passenger.get_passenger_type_display(),
+            passenger.booking.schedule.route.name if passenger.booking.schedule and passenger.booking.schedule.route else 'N/A',
+            passenger.booking.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if passenger.booking.schedule else 'N/A',
+            passenger.booking.schedule.vessel.name if passenger.booking.schedule and passenger.booking.schedule.vessel else 'N/A',
+            'Confirmed' if passenger.booking.is_paid else 'Pending'
+        ])
+
+    return response
+
+def export_revenue_csv(data):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename=revenue_report_{data["month"].replace(" ", "_")}.csv'
+
+    writer = csv.writer(response)
+
+    # Write header
+    writer.writerow(['Comprehensive Revenue Report'])
+    writer.writerow([f'Period: {data["month"]}'])
+    writer.writerow([f'Generated: {data["generated_at"].strftime("%Y-%m-%d %H:%M")}'])
+    writer.writerow([f'Generated By: {data["user"].username}'])
+    writer.writerow([])
+
+    # Write summary section
+    writer.writerow(['SUMMARY'])
+    writer.writerow(['Total Bookings', data['booking_count']])
+    writer.writerow(['Total Revenue', f'₱{data["total_revenue"]:,.2f}'])
+    writer.writerow([])
+
+    # Write revenue by booking type
+    writer.writerow(['REVENUE BY BOOKING TYPE'])
+    writer.writerow(['Passenger Bookings', f'₱{data["passenger_revenue"]:,.2f}'])
+    writer.writerow(['Vehicle Bookings', f'₱{data["vehicle_revenue"]:,.2f}'])
+    writer.writerow([])
+
+    # Write revenue by payment method
+    writer.writerow(['REVENUE BY PAYMENT METHOD'])
+    writer.writerow(['Cash Payments', data['cash_payment_count'], f'₱{data["cash_revenue"]:,.2f}'])
+    writer.writerow(['GCash Payments', data['gcash_payment_count'], f'₱{data["gcash_revenue"]:,.2f}'])
+    writer.writerow([])
+
+    # Write revenue by passenger type
+    writer.writerow(['REVENUE BY PASSENGER TYPE'])
+    writer.writerow(['Regular Adult', data['adult_count'], f'₱{data["adult_revenue"]:,.2f}'])
+    writer.writerow(['Child', data['child_count'], f'₱{data["child_revenue"]:,.2f}'])
+    writer.writerow(['Student', data['student_count'], f'₱{data["student_revenue"]:,.2f}'])
+    writer.writerow(['Senior Citizen', data['senior_count'], f'₱{data["senior_revenue"]:,.2f}'])
+    writer.writerow([])
+
+    # Write booking details
+    writer.writerow(['BOOKING DETAILS'])
+    writer.writerow([
+        'Booking Reference',
+        'Date',
+        'Full Name',
+        'Type',
+        'Route',
+        'Total Fare'
+    ])
+
+    for booking in data['bookings']:
+        writer.writerow([
+            booking.booking_reference,
+            booking.created_at.strftime('%Y-%m-%d'),
+            booking.full_name,
+            booking.get_booking_type_display(),
+            booking.schedule.route.name if booking.schedule and booking.schedule.route else 'N/A',
+            f'₱{booking.total_fare:,.2f}'
+        ])
+
+    return response
+
+def export_boarding_pdf(data):
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=passenger_boarding_list_{timezone.now().strftime("%Y%m%d_%H%M")}.pdf'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=landscape(letter),
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    story = []
+    styles = getSampleStyleSheet()
+
+    # Add title and metadata
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=20
+    )
+
+    story.append(Paragraph(f"Passenger Boarding List", title_style))
+    story.append(Spacer(1, 10))
+
+    # Add generation info
+    info_style = ParagraphStyle(
+        'Info',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=20
+    )
+    story.append(Paragraph(f"Generated: {data['generated_at'].strftime('%Y-%m-%d %H:%M')}", info_style))
+    story.append(Paragraph(f"Generated By: {data['user'].username}", info_style))
+    story.append(Spacer(1, 10))
+
+    # Create the main table
+    table_data = [[
+        'Booking Ref',
+        'Passenger Name',
+        'Type',
+        'Route',
+        'Departure',
+        'Vessel',
+        'Status'
+    ]]
+
+    for passenger in data['passenger_list']:
+        table_data.append([
+            passenger.booking.booking_reference,
+            passenger.full_name,
+            passenger.get_passenger_type_display(),
+            passenger.booking.schedule.route.name if passenger.booking.schedule and passenger.booking.schedule.route else 'N/A',
+            passenger.booking.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if passenger.booking.schedule else 'N/A',
+            passenger.booking.schedule.vessel.name if passenger.booking.schedule and passenger.booking.schedule.vessel else 'N/A',
+            'Confirmed' if passenger.booking.is_paid else 'Pending'
+        ])
+
+    # Create and style the table
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+
+    # Add conditional formatting for status column
+    for i, row in enumerate(table_data):
+        if i > 0:  # Skip header row
+            status = row[-1]
+            if status == 'Confirmed':
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (-1, i), (-1, i), colors.lightgreen),
+                    ('TEXTCOLOR', (-1, i), (-1, i), colors.darkgreen),
+                ]))
+            else:
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (-1, i), (-1, i), colors.lightcoral),
+                    ('TEXTCOLOR', (-1, i), (-1, i), colors.darkred),
+                ]))
+
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Add summary
+    summary_style = ParagraphStyle(
+        'Summary',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=6
+    )
+    story.append(Paragraph(f"Total Passengers: {data['passenger_count']}", summary_style))
+
+    doc.build(story)
+    return response
+
+def export_revenue_pdf(data):
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=revenue_report_{data["month"].replace(" ", "_")}.pdf'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=landscape(letter),  # Use landscape orientation for more width
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
+    story = []
+    styles = getSampleStyleSheet()
+
+    # Add title and metadata
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=10,
+        alignment=1  # Center alignment
+    )
+
+    subtitle_style = ParagraphStyle(
+        'Subtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=5,
+        alignment=1,  # Center alignment
+        textColor=colors.gray
+    )
+
+    section_style = ParagraphStyle(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceBefore=15,
+        spaceAfter=10,
+        backColor=colors.lightgrey,
+        borderPadding=5
+    )
+
+    story.append(Paragraph("Comprehensive Revenue Report", title_style))
+    story.append(Paragraph(f"Period: {data['month']}", subtitle_style))
+    story.append(Paragraph(f"Generated: {data['generated_at'].strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    story.append(Paragraph(f"Generated By: {data['user'].username}", subtitle_style))
+    story.append(Spacer(1, 20))
+
+    # Summary Section
+    story.append(Paragraph("SUMMARY", section_style))
+
+    summary_data = [
+        ['Total Bookings:', f"{data['booking_count']}"],
+        ['Total Revenue:', f"₱{data['total_revenue']:,.2f}"]
+    ]
+
+    summary_table = Table(summary_data, colWidths=[150, 150])
+    summary_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+    ]))
+
+    story.append(summary_table)
+    story.append(Spacer(1, 10))
+
+    # Revenue by Booking Type
+    story.append(Paragraph("REVENUE BY BOOKING TYPE", section_style))
+
+    # Calculate percentages
+    total_revenue = float(data['passenger_revenue'] + data['vehicle_revenue'])
+    passenger_percent = (float(data['passenger_revenue']) / total_revenue * 100) if total_revenue > 0 else 0
+    vehicle_percent = (float(data['vehicle_revenue']) / total_revenue * 100) if total_revenue > 0 else 0
+
+    booking_type_data = [
+        ['Booking Type', 'Revenue', 'Percentage'],
+        ['Passenger Bookings', f"₱{data['passenger_revenue']:,.2f}", f"{passenger_percent:.1f}%"],
+        ['Vehicle Bookings', f"₱{data['vehicle_revenue']:,.2f}", f"{vehicle_percent:.1f}%"]
+    ]
+
+    booking_type_table = Table(booking_type_data, colWidths=[150, 150, 100])
+    booking_type_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (2, -1), 'RIGHT'),
+    ]))
+
+    story.append(booking_type_table)
+    story.append(Spacer(1, 10))
+
+    # Revenue by Payment Method
+    story.append(Paragraph("REVENUE BY PAYMENT METHOD", section_style))
+
+    # Calculate percentages
+    payment_total = float(data['cash_revenue'] + data['gcash_revenue'])
+    cash_percent = (float(data['cash_revenue']) / payment_total * 100) if payment_total > 0 else 0
+    gcash_percent = (float(data['gcash_revenue']) / payment_total * 100) if payment_total > 0 else 0
+
+    payment_method_data = [
+        ['Payment Method', 'Transactions', 'Revenue', 'Percentage'],
+        ['Cash', data['cash_payment_count'], f"₱{data['cash_revenue']:,.2f}", f"{cash_percent:.1f}%"],
+        ['GCash', data['gcash_payment_count'], f"₱{data['gcash_revenue']:,.2f}", f"{gcash_percent:.1f}%"]
+    ]
+
+    payment_method_table = Table(payment_method_data, colWidths=[100, 100, 150, 100])
+    payment_method_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (3, -1), 'RIGHT'),
+    ]))
+
+    story.append(payment_method_table)
+    story.append(Spacer(1, 10))
+
+    # Revenue by Passenger Type
+    story.append(Paragraph("REVENUE BY PASSENGER TYPE", section_style))
+
+    passenger_type_data = [
+        ['Passenger Type', 'Count', 'Revenue'],
+        ['Regular Adult', data['adult_count'], f"₱{data['adult_revenue']:,.2f}"],
+        ['Child', data['child_count'], f"₱{data['child_revenue']:,.2f}"],
+        ['Student', data['student_count'], f"₱{data['student_revenue']:,.2f}"],
+        ['Senior Citizen', data['senior_count'], f"₱{data['senior_revenue']:,.2f}"]
+    ]
+
+    passenger_type_table = Table(passenger_type_data, colWidths=[150, 100, 150])
+    passenger_type_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (1, 0), (2, -1), 'RIGHT'),
+    ]))
+
+    story.append(passenger_type_table)
+    story.append(Spacer(1, 10))
+
+    # Booking Details
+    story.append(Paragraph("BOOKING DETAILS", section_style))
+
+    # Create the booking details table with a more descriptive header
+    booking_details_data = [
+        ['Booking Reference', 'Date', 'Full Name', 'Type', 'Total Fare']
+    ]
+
+    # Add up to 20 bookings to avoid making the PDF too large
+    for booking in list(data['bookings'])[:20]:
+        # Format the booking reference to ensure it's clearly visible
+        booking_details_data.append([
+            Paragraph(booking.booking_reference, ParagraphStyle('BookingRef', fontSize=7, fontName='Helvetica')),
+            booking.created_at.strftime('%Y-%m-%d'),
+            booking.full_name,
+            booking.get_booking_type_display(),
+            f"₱{booking.total_fare:,.2f}"
+        ])
+
+    # Add a note if there are more bookings
+    if data['bookings'].count() > 20:
+        booking_details_data.append(['', '', f"... and {data['bookings'].count() - 20} more bookings", '', ''])
+
+    # Adjust column widths to better fit the content in landscape mode
+    booking_details_table = Table(booking_details_data, colWidths=[140, 80, 200, 100, 100])
+    booking_details_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),  # Header font size
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),  # Add padding to header
+        ('TOPPADDING', (0, 0), (-1, 0), 6),  # Add padding to header
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),  # Left align booking reference
+        ('ALIGN', (4, 0), (4, -1), 'RIGHT'),  # Right align fare
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),  # Vertically center all content
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),  # Alternate row colors
+    ]))
+
+    story.append(booking_details_table)
+
+    doc.build(story)
     return response
 
 def export_excel(data):
@@ -3133,6 +4196,296 @@ def export_excel(data):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename=booking_report_{data["month"].replace(" ", "_")}.xlsx'
+    return response
+
+def export_boarding_excel(data):
+    import xlsxwriter
+    from io import BytesIO
+
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet('Passenger Boarding List')
+
+    # Add headers
+    headers = [
+        'Booking Reference',
+        'Passenger Name',
+        'Passenger Type',
+        'Route',
+        'Departure Date/Time',
+        'Vessel',
+        'Status'
+    ]
+
+    # Formats
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#4B5563',
+        'font_color': 'white',
+        'border': 1
+    })
+
+    cell_format = workbook.add_format({
+        'border': 1
+    })
+
+    date_format = workbook.add_format({
+        'border': 1,
+        'num_format': 'yyyy-mm-dd hh:mm'
+    })
+
+    confirmed_format = workbook.add_format({
+        'border': 1,
+        'bg_color': '#D1FAE5',
+        'font_color': '#065F46'
+    })
+
+    pending_format = workbook.add_format({
+        'border': 1,
+        'bg_color': '#FEE2E2',
+        'font_color': '#991B1B'
+    })
+
+    # Write headers
+    for col, header in enumerate(headers):
+        worksheet.write(0, col, header, header_format)
+
+    # Write data
+    for row, passenger in enumerate(data['passenger_list'], start=1):
+        worksheet.write(row, 0, passenger.booking.booking_reference, cell_format)
+        worksheet.write(row, 1, passenger.full_name, cell_format)
+        worksheet.write(row, 2, passenger.get_passenger_type_display(), cell_format)
+        worksheet.write(row, 3, passenger.booking.schedule.route.name if passenger.booking.schedule and passenger.booking.schedule.route else 'N/A', cell_format)
+
+        # Format departure datetime
+        if passenger.booking.schedule and passenger.booking.schedule.departure_datetime:
+            worksheet.write(row, 4, passenger.booking.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M'), date_format)
+        else:
+            worksheet.write(row, 4, 'N/A', cell_format)
+
+        worksheet.write(row, 5, passenger.booking.schedule.vessel.name if passenger.booking.schedule and passenger.booking.schedule.vessel else 'N/A', cell_format)
+
+        # Format status with color
+        status_format = confirmed_format if passenger.booking.is_paid else pending_format
+        status_text = 'Confirmed' if passenger.booking.is_paid else 'Pending'
+        worksheet.write(row, 6, status_text, status_format)
+
+    # Add summary
+    summary_row = len(data['passenger_list']) + 2
+    worksheet.write(summary_row, 0, 'Summary', header_format)
+    worksheet.write(summary_row, 1, f"Total Passengers: {data['passenger_count']}", cell_format)
+    worksheet.write(summary_row, 2, f"Generated: {data['generated_at'].strftime('%Y-%m-%d %H:%M')}", cell_format)
+
+    # Adjust column widths
+    worksheet.set_column('A:A', 15)  # Reference
+    worksheet.set_column('B:B', 25)  # Passenger Name
+    worksheet.set_column('C:C', 15)  # Passenger Type
+    worksheet.set_column('D:D', 25)  # Route
+    worksheet.set_column('E:E', 20)  # Departure Date/Time
+    worksheet.set_column('F:F', 20)  # Vessel
+    worksheet.set_column('G:G', 10)  # Status
+
+    workbook.close()
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=passenger_boarding_list_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx'
+
+    return response
+
+def export_revenue_excel(data):
+    import xlsxwriter
+    from io import BytesIO
+
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet('Revenue Report')
+
+    # Formats
+    title_format = workbook.add_format({
+        'bold': True,
+        'font_size': 16,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+
+    subtitle_format = workbook.add_format({
+        'italic': True,
+        'align': 'center'
+    })
+
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#4B5563',
+        'font_color': 'white',
+        'border': 1
+    })
+
+    section_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#E5E7EB',
+        'border': 1
+    })
+
+    cell_format = workbook.add_format({
+        'border': 1
+    })
+
+    money_format = workbook.add_format({
+        'border': 1,
+        'num_format': '₱#,##0.00'
+    })
+
+    percent_format = workbook.add_format({
+        'border': 1,
+        'num_format': '0.0%'
+    })
+
+    date_format = workbook.add_format({
+        'border': 1,
+        'num_format': 'yyyy-mm-dd'
+    })
+
+    # Write title and metadata
+    worksheet.merge_range('A1:G1', 'Comprehensive Revenue Report', title_format)
+    worksheet.merge_range('A2:G2', f'Period: {data["month"]}', subtitle_format)
+    worksheet.merge_range('A3:G3', f'Generated: {data["generated_at"].strftime("%Y-%m-%d %H:%M")}', subtitle_format)
+    worksheet.merge_range('A4:G4', f'Generated By: {data["user"].username}', subtitle_format)
+
+    # Write summary section
+    row = 5
+    worksheet.merge_range(row, 0, row, 6, 'SUMMARY', section_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Total Bookings', cell_format)
+    worksheet.write(row, 1, data['booking_count'], cell_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Total Revenue', cell_format)
+    worksheet.write(row, 1, float(data['total_revenue']), money_format)
+    row += 2
+
+    # Write revenue by booking type
+    worksheet.merge_range(row, 0, row, 6, 'REVENUE BY BOOKING TYPE', section_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Booking Type', header_format)
+    worksheet.write(row, 1, 'Revenue', header_format)
+    worksheet.write(row, 2, 'Percentage', header_format)
+    row += 1
+
+    # Calculate percentages
+    total_revenue = float(data['passenger_revenue'] + data['vehicle_revenue'])
+    passenger_percent = float(data['passenger_revenue']) / total_revenue if total_revenue > 0 else 0
+    vehicle_percent = float(data['vehicle_revenue']) / total_revenue if total_revenue > 0 else 0
+
+    worksheet.write(row, 0, 'Passenger Bookings', cell_format)
+    worksheet.write(row, 1, float(data['passenger_revenue']), money_format)
+    worksheet.write(row, 2, passenger_percent, percent_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Vehicle Bookings', cell_format)
+    worksheet.write(row, 1, float(data['vehicle_revenue']), money_format)
+    worksheet.write(row, 2, vehicle_percent, percent_format)
+    row += 2
+
+    # Write revenue by payment method
+    worksheet.merge_range(row, 0, row, 6, 'REVENUE BY PAYMENT METHOD', section_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Payment Method', header_format)
+    worksheet.write(row, 1, 'Transactions', header_format)
+    worksheet.write(row, 2, 'Revenue', header_format)
+    worksheet.write(row, 3, 'Percentage', header_format)
+    row += 1
+
+    # Calculate percentages
+    payment_total = float(data['cash_revenue'] + data['gcash_revenue'])
+    cash_percent = float(data['cash_revenue']) / payment_total if payment_total > 0 else 0
+    gcash_percent = float(data['gcash_revenue']) / payment_total if payment_total > 0 else 0
+
+    worksheet.write(row, 0, 'Cash', cell_format)
+    worksheet.write(row, 1, data['cash_payment_count'], cell_format)
+    worksheet.write(row, 2, float(data['cash_revenue']), money_format)
+    worksheet.write(row, 3, cash_percent, percent_format)
+    row += 1
+
+    worksheet.write(row, 0, 'GCash', cell_format)
+    worksheet.write(row, 1, data['gcash_payment_count'], cell_format)
+    worksheet.write(row, 2, float(data['gcash_revenue']), money_format)
+    worksheet.write(row, 3, gcash_percent, percent_format)
+    row += 2
+
+    # Write revenue by passenger type
+    worksheet.merge_range(row, 0, row, 6, 'REVENUE BY PASSENGER TYPE', section_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Passenger Type', header_format)
+    worksheet.write(row, 1, 'Count', header_format)
+    worksheet.write(row, 2, 'Revenue', header_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Regular Adult', cell_format)
+    worksheet.write(row, 1, data['adult_count'], cell_format)
+    worksheet.write(row, 2, float(data['adult_revenue']), money_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Child', cell_format)
+    worksheet.write(row, 1, data['child_count'], cell_format)
+    worksheet.write(row, 2, float(data['child_revenue']), money_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Student', cell_format)
+    worksheet.write(row, 1, data['student_count'], cell_format)
+    worksheet.write(row, 2, float(data['student_revenue']), money_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Senior Citizen', cell_format)
+    worksheet.write(row, 1, data['senior_count'], cell_format)
+    worksheet.write(row, 2, float(data['senior_revenue']), money_format)
+    row += 2
+
+    # Write booking details
+    worksheet.merge_range(row, 0, row, 6, 'BOOKING DETAILS', section_format)
+    row += 1
+
+    worksheet.write(row, 0, 'Booking Reference', header_format)
+    worksheet.write(row, 1, 'Date', header_format)
+    worksheet.write(row, 2, 'Full Name', header_format)
+    worksheet.write(row, 3, 'Type', header_format)
+    worksheet.write(row, 4, 'Route', header_format)
+    worksheet.write(row, 5, 'Total Fare', header_format)
+    row += 1
+
+    for booking in data['bookings']:
+        worksheet.write(row, 0, booking.booking_reference, cell_format)
+        worksheet.write(row, 1, booking.created_at.strftime('%Y-%m-%d'), date_format)
+        worksheet.write(row, 2, booking.full_name, cell_format)
+        worksheet.write(row, 3, booking.get_booking_type_display(), cell_format)
+        worksheet.write(row, 4, booking.schedule.route.name if booking.schedule and booking.schedule.route else 'N/A', cell_format)
+        worksheet.write(row, 5, float(booking.total_fare), money_format)
+        row += 1
+
+    # Adjust column widths
+    worksheet.set_column('A:A', 20)  # Reference/Type
+    worksheet.set_column('B:B', 15)  # Date/Count
+    worksheet.set_column('C:C', 25)  # Name/Revenue
+    worksheet.set_column('D:D', 15)  # Type/Percentage
+    worksheet.set_column('E:E', 25)  # Route
+    worksheet.set_column('F:F', 15)  # Fare
+
+    workbook.close()
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=revenue_report_{data["month"].replace(" ", "_")}.xlsx'
+
     return response
 
 def export_pdf(data):
@@ -3231,6 +4584,136 @@ def vehicle_types_view(request):
     return render(request, 'dashboard/vehicle_type_item.html', {
         'vehicle_types': vehicle_types
     })
+
+@login_required
+@staff_member_required
+def vehicle_list(request):
+    """View for displaying and managing vehicles in the dashboard"""
+    # Get all vehicles with their related vehicle types
+    vehicles = Vehicle.objects.all().select_related('vehicle_type').order_by('name')
+
+    # Handle search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        vehicles = vehicles.filter(
+            Q(name__icontains=search_query) |
+            Q(plate_number__icontains=search_query) |
+            Q(vehicle_type__name__icontains=search_query)
+        )
+
+    # Get all vehicle types for the add vehicle form
+    vehicle_types = VehicleType.objects.all().order_by('name')
+
+    context = {
+        'vehicles': vehicles,
+        'vehicle_types': vehicle_types,
+    }
+
+    return render(request, 'dashboard/vehicles.html', context)
+
+@login_required
+@staff_member_required
+def add_vehicle(request):
+    """View for adding a new vehicle"""
+    if request.method == 'POST':
+        try:
+            vehicle = Vehicle.objects.create(
+                name=request.POST.get('name'),
+                plate_number=request.POST.get('plate_number'),
+                description=request.POST.get('description', ''),
+                capacity=request.POST.get('capacity'),
+                active=request.POST.get('active') == 'on',
+                vehicle_type_id=request.POST.get('vehicle_type')
+            )
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Vehicle added successfully'
+                })
+
+            messages.success(request, 'Vehicle added successfully')
+            return redirect('vehicle_list')
+
+        except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e)
+                })
+
+            messages.error(request, f'Error adding vehicle: {str(e)}')
+            return redirect('vehicle_list')
+
+    # This view doesn't need a GET handler as it uses a modal form in vehicles.html
+    return redirect('vehicle_list')
+
+@login_required
+@staff_member_required
+def edit_vehicle(request, vehicle_id):
+    """View for editing an existing vehicle"""
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+    if request.method == 'POST':
+        try:
+            vehicle.name = request.POST.get('name')
+            vehicle.plate_number = request.POST.get('plate_number')
+            vehicle.description = request.POST.get('description', '')
+            vehicle.capacity = request.POST.get('capacity')
+            vehicle.active = request.POST.get('active') == 'on'
+            vehicle.vehicle_type_id = request.POST.get('vehicle_type')
+            vehicle.save()
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Vehicle updated successfully'
+                })
+
+            messages.success(request, 'Vehicle updated successfully')
+            return redirect('vehicle_list')
+
+        except Exception as e:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e)
+                })
+
+            messages.error(request, f'Error updating vehicle: {str(e)}')
+            return redirect('vehicle_list')
+
+    # This view doesn't need a GET handler as it uses a modal form
+    return redirect('vehicle_list')
+
+@login_required
+@staff_member_required
+def delete_vehicle(request, vehicle_id):
+    """View for deleting a vehicle"""
+    vehicle = get_object_or_404(Vehicle, id=vehicle_id)
+
+    try:
+        vehicle_name = vehicle.name
+        vehicle.delete()
+
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Vehicle "{vehicle_name}" deleted successfully'
+            })
+
+        messages.success(request, f'Vehicle "{vehicle_name}" deleted successfully')
+
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+
+        messages.error(request, f'Error deleting vehicle: {str(e)}')
+
+    return redirect('vehicle_list')
 @require_http_methods(["POST"])
 def add_vehicle_type(request):
     vehicle_type = VehicleType.objects.create(
@@ -3286,6 +4769,13 @@ def delete_vehicle_type(request, id):
     vehicle_type = get_object_or_404(VehicleType, id=id)
     vehicle_type.delete()
     return HttpResponse('')
+
+def get_vehicle_types(request):
+    """View for getting all vehicle types for HTMX"""
+    vehicle_types = VehicleType.objects.all().order_by('name')
+    return render(request, 'dashboard/vehicle_type_list.html', {
+        'vehicle_types': vehicle_types
+    })
 
 
 from django.http import JsonResponse
@@ -3401,3 +4891,120 @@ def schedule_delete(request, pk):
             'success': False,
             'error': str(e)
         }, status=500)
+def booking(request):
+    """View for displaying and handling the passenger booking form"""
+    # Get upcoming schedules for the dropdown
+    schedules = Schedule.objects.filter(
+        departure_datetime__gt=timezone.now(),
+        status='scheduled'
+    ).order_by('departure_datetime')
+
+    # Check if a specific schedule was selected
+    selected_schedule = None
+    if request.GET.get('schedule'):
+        try:
+            selected_schedule = Schedule.objects.get(id=request.GET.get('schedule'))
+            # Pre-calculate the fare rates for JavaScript
+            adult_fare = selected_schedule.adult_fare
+            child_fare = selected_schedule.child_fare
+        except Schedule.DoesNotExist:
+            messages.error(request, "The selected schedule does not exist.")
+            return redirect('booking')
+
+    context = {
+        'schedules': schedules,
+        'selected_schedule': selected_schedule,
+    }
+
+    return render(request, 'booking.html', context)
+
+def vehicle_booking(request):
+    """View for displaying and handling the vehicle booking form"""
+    # Get upcoming schedules for the dropdown
+    schedules = Schedule.objects.filter(
+        departure_datetime__gt=timezone.now(),
+        status='scheduled'
+    ).order_by('departure_datetime')
+
+    # Get all vehicle types for the vehicle booking form
+    vehicle_types = VehicleType.objects.all()
+
+    # Check if a specific schedule was selected
+    selected_schedule = None
+    if request.GET.get('schedule'):
+        try:
+            selected_schedule = Schedule.objects.get(id=request.GET.get('schedule'))
+        except Schedule.DoesNotExist:
+            messages.error(request, "The selected schedule does not exist.")
+            return redirect('vehicle_booking')
+
+    context = {
+        'schedules': schedules,
+        'vehicle_types': vehicle_types,
+        'selected_schedule': selected_schedule,
+    }
+
+    return render(request, 'vehicle_booking.html', context)
+def booking(request):
+    """View for displaying and handling the passenger booking form"""
+    # Get upcoming schedules for the dropdown
+    schedules = Schedule.objects.filter(
+        departure_datetime__gt=timezone.now(),
+        status='scheduled'
+    ).order_by('departure_datetime')
+
+    # Check if a specific schedule was selected
+    selected_schedule = None
+    if request.GET.get('schedule'):
+        try:
+            selected_schedule = Schedule.objects.get(id=request.GET.get('schedule'))
+            # Pre-calculate the fare rates for JavaScript
+            adult_fare = selected_schedule.adult_fare
+            child_fare = selected_schedule.child_fare
+        except Schedule.DoesNotExist:
+            messages.error(request, "The selected schedule does not exist.")
+            return redirect('booking')
+
+    context = {
+        'schedules': schedules,
+        'selected_schedule': selected_schedule,
+    }
+
+    return render(request, 'booking.html', context)
+
+def vehicle_booking(request):
+    """View for displaying and handling the vehicle booking form"""
+    # Get upcoming schedules for the dropdown
+    schedules = Schedule.objects.filter(
+        departure_datetime__gt=timezone.now(),
+        status='scheduled'
+    ).order_by('departure_datetime')
+
+    # Get all vehicle types for the vehicle booking form
+    vehicle_types = VehicleType.objects.all()
+
+    # Check if a specific schedule was selected
+    selected_schedule = None
+    if request.GET.get('schedule'):
+        try:
+            selected_schedule = Schedule.objects.get(id=request.GET.get('schedule'))
+        except Schedule.DoesNotExist:
+            messages.error(request, "The selected schedule does not exist.")
+            return redirect('vehicle_booking')
+
+    # Get user information if authenticated
+    user_info = {}
+    if request.user.is_authenticated:
+        user_info = {
+            'full_name': f"{request.user.first_name} {request.user.last_name}".strip(),
+            'email': request.user.email
+        }
+
+    context = {
+        'schedules': schedules,
+        'vehicle_types': vehicle_types,
+        'selected_schedule': selected_schedule,
+        'user_info': user_info
+    }
+
+    return render(request, 'vehicle_booking.html', context)

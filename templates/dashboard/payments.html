@@ -102,12 +102,20 @@
                                             </div>
                                         {% else %}
                                             <div class="flex justify-between">
-                                                <span class="text-gray-600">Adult Passengers:</span>
+                                                <span class="text-gray-600">Regular Adult Passengers:</span>
                                                 <span class="font-medium">{{ booking.adult_passengers }}</span>
                                             </div>
                                             <div class="flex justify-between">
                                                 <span class="text-gray-600">Child Passengers:</span>
                                                 <span class="font-medium">{{ booking.child_passengers }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Student Passengers:</span>
+                                                <span class="font-medium">{{ booking.student_passengers }}</span>
+                                            </div>
+                                            <div class="flex justify-between">
+                                                <span class="text-gray-600">Senior Citizen Passengers:</span>
+                                                <span class="font-medium">{{ booking.senior_passengers }}</span>
                                             </div>
                                         {% endif %}
                                     </div>
@@ -398,30 +406,59 @@
                 const total = data.total_amount || totalAmount;
                 const change = cashReceived - total;
 
-            const today = new Date();
-            const dateString = today.toLocaleDateString();
-            const timeString = today.toLocaleTimeString();
+                const today = new Date();
+                const dateString = today.toLocaleDateString();
+                const timeString = today.toLocaleTimeString();
 
-            // Create receipt HTML
-            let receiptHTML = `
-                <div class="text-center mb-4">
-                    <h2 class="text-xl font-bold">Payment Receipt</h2>
-                    <p class="text-sm text-gray-600">${dateString} ${timeString}</p>
-                </div>
-                <div class="border-t border-b py-3 my-3">
-                    <p><strong>Booking Reference:</strong> ${data.booking_reference}</p>
-                    <p><strong>Customer:</strong> ${data.customer_name || 'N/A'}</p>
-                </div>
-                <div class="my-3">
-                    <p><strong>Payment Method:</strong> Cash</p>
-                    <p><strong>Amount Paid:</strong> ₱${total.toFixed(2)}</p>
-                    <p><strong>Cash Received:</strong> ₱${cashReceived.toFixed(2)}</p>
-                    <p><strong>Change:</strong> ₱${change.toFixed(2)}</p>
-                </div>
-                <div class="border-t pt-3 text-center">
-                    <p class="text-sm">Thank you for your payment!</p>
-                </div>
-            `;
+                // Get booking details from the page
+                const bookingType = document.querySelector('.flex.justify-between:has(span:contains("Booking Type")) span.font-medium')?.textContent || '';
+                const isPassengerBooking = bookingType.includes('Passenger');
+
+                // Get passenger counts and fares if it's a passenger booking
+                let fareDetailsHTML = '';
+                if (isPassengerBooking) {
+                    // Get passenger counts from the page
+                    const adultPassengers = parseInt(document.querySelector('.flex.justify-between:has(span:contains("Regular Adult Passengers")) span.font-medium')?.textContent || '0');
+                    const childPassengers = parseInt(document.querySelector('.flex.justify-between:has(span:contains("Child Passengers")) span.font-medium')?.textContent || '0');
+                    const studentPassengers = parseInt(document.querySelector('.flex.justify-between:has(span:contains("Student Passengers")) span.font-medium')?.textContent || '0');
+                    const seniorPassengers = parseInt(document.querySelector('.flex.justify-between:has(span:contains("Senior Citizen Passengers")) span.font-medium')?.textContent || '0');
+
+                    // Add fare details section if we have passenger counts
+                    if (adultPassengers > 0 || childPassengers > 0 || studentPassengers > 0 || seniorPassengers > 0) {
+                        fareDetailsHTML = `
+                            <div class="border-t border-b py-3 my-3">
+                                <h3 class="font-bold mb-2">Fare Details</h3>
+                                ${adultPassengers > 0 ? `<p><strong>Regular Adults:</strong> ${adultPassengers}</p>` : ''}
+                                ${childPassengers > 0 ? `<p><strong>Children:</strong> ${childPassengers}</p>` : ''}
+                                ${studentPassengers > 0 ? `<p><strong>Students:</strong> ${studentPassengers}</p>` : ''}
+                                ${seniorPassengers > 0 ? `<p><strong>Senior Citizens:</strong> ${seniorPassengers}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                }
+
+                // Create receipt HTML
+                let receiptHTML = `
+                    <div class="text-center mb-4">
+                        <h2 class="text-xl font-bold">Payment Receipt</h2>
+                        <p class="text-sm text-gray-600">${dateString} ${timeString}</p>
+                    </div>
+                    <div class="border-t border-b py-3 my-3">
+                        <p><strong>Booking Reference:</strong> ${data.booking_reference}</p>
+                        <p><strong>Customer:</strong> ${data.customer_name || 'N/A'}</p>
+                        <p><strong>Booking Type:</strong> ${bookingType}</p>
+                    </div>
+                    ${fareDetailsHTML}
+                    <div class="my-3">
+                        <p><strong>Payment Method:</strong> Cash</p>
+                        <p><strong>Amount Paid:</strong> ₱${total.toFixed(2)}</p>
+                        <p><strong>Cash Received:</strong> ₱${cashReceived.toFixed(2)}</p>
+                        <p><strong>Change:</strong> ₱${change.toFixed(2)}</p>
+                    </div>
+                    <div class="border-t pt-3 text-center">
+                        <p class="text-sm">Thank you for your payment!</p>
+                    </div>
+                `;
 
             receiptContent.innerHTML = receiptHTML;
             receiptModal.classList.remove('hidden');
@@ -446,6 +483,9 @@
                           .header { text-align: center; margin-bottom: 20px; }
                           .divider { border-top: 1px solid #ddd; margin: 10px 0; }
                           .footer { text-align: center; margin-top: 20px; font-size: 12px; }
+                          .fare-details { margin: 10px 0; }
+                          .fare-details h3 { font-size: 14px; margin-bottom: 5px; }
+                          .fare-details p { margin: 3px 0; }
                       </style>
                   </head>
                   <body onload="window.print(); window.close();">

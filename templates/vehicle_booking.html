@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+{% load booking_extras %}
+
+{% block title %}Book Your Vehicle{% endblock %}
+
+{% block content %}
+<div class="bg-gray-50 min-h-screen">
+    {% include 'includes/hero_section.html' with title="Vehicle Booking" subtitle="Book your vehicle transport on our ferry" %}
+
+    <div class="container mx-auto px-4 py-12">
+        {% if error %}
+        <div class="max-w-3xl mx-auto bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+            <p class="font-bold">Error</p>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Schedule Selection -->
+        <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 mb-8 transition-transform duration-300 hover:shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-calendar-alt text-blue-600 mr-3"></i>
+                Select Schedule
+            </h2>
+
+            <form method="get" action="{% url 'vehicle_booking' %}" class="space-y-4">
+                <div class="flex space-x-2">
+                    <select id="schedule-select" name="schedule" required
+                            class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select a schedule</option>
+                        {% for schedule in schedules %}
+                        <option value="{{ schedule.id }}" {% if selected_schedule.id == schedule.id %}selected{% endif %}>
+                            {{ schedule.vessel.name }} - {{ schedule.route.name }} - {{ schedule.departure_datetime|date:"F d, Y H:i" }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        <i class="fas fa-search mr-2"></i>Select
+                    </button>
+                    <script>
+                        // Initialize when page loads if a schedule is already selected
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const scheduleSelect = document.getElementById('schedule-select');
+                            if (scheduleSelect && scheduleSelect.value) {
+                                // Update the hidden input in the booking form
+                                const hiddenScheduleInput = document.querySelector('#vehicle-booking-form input[name="schedule"]');
+                                if (hiddenScheduleInput) {
+                                    hiddenScheduleInput.value = scheduleSelect.value;
+                                }
+                            }
+                        });
+                    </script>
+                </div>
+            </form>
+        </div>
+
+        <!-- Vehicle Booking Form -->
+        <div class="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 transition-transform duration-300 hover:shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <i class="fas fa-truck text-blue-600 mr-3"></i>
+                Vehicle Details
+            </h2>
+
+            <form id="vehicle-booking-form" method="post" action="{% url 'create_booking' %}" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="schedule" value="{{ selected_schedule.id|default:'' }}">
+                <input type="hidden" name="booking_type" value="vehicle">
+
+                <!-- Debug info -->
+                <div id="debug-info" class="hidden">
+                    <p>Form action: <span id="form-action-debug"></span></p>
+                    <p>Schedule ID: <span id="schedule-id-debug"></span></p>
+                </div>
+
+                <!-- Vehicle Details -->
+                <div class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Vehicle Type</label>
+                            <div class="relative">
+                                <select id="vehicle_type" name="vehicle_type"
+                                        class="w-full px-3 py-2 pl-8 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                        hx-get="{% url 'calculate_vehicle_fare' %}"
+                                        hx-trigger="change"
+                                        hx-target="#vehicle-fare-details"
+                                        hx-include="[name='vehicle_type']">
+                                    <option value="">Select a vehicle type</option>
+                                    {% for vehicle_type in vehicle_types %}
+                                        <option value="{{ vehicle_type.id }}"
+                                                data-base-fare="{{ vehicle_type.base_fare }}"
+                                                data-max-occupants="{{ vehicle_type.max_occupants }}"
+                                                data-max-cargo="{{ vehicle_type.max_cargo_weight }}">
+                                            {{ vehicle_type.name }} - ₱{{ vehicle_type.base_fare }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <i class="fas fa-truck absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Plate Number</label>
+                            <div class="relative">
+                                <input type="text" name="plate_number" id="plate_number" required
+                                       class="w-full px-3 py-2 pl-8 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                       placeholder="Enter plate number">
+                                <i class="fas fa-id-card absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">
+                                Number of Occupants
+                                <span class="text-sm text-gray-500" id="max-occupants-info"></span>
+                            </label>
+                            <div class="relative">
+                                <input type="number" name="occupant_count" id="occupant_count" min="1" value="1" required
+                                       class="w-full px-3 py-2 pl-8 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                                <i class="fas fa-users absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">
+                                Cargo Weight (tons)
+                                <span class="text-sm text-gray-500" id="max-cargo-info"></span>
+                            </label>
+                            <div class="relative">
+                                <input type="number" name="cargo_weight" id="cargo_weight" min="0" step="0.1" value="0" required
+                                       class="w-full px-3 py-2 pl-8 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                                <i class="fas fa-weight absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehicle Fare Details -->
+                    <div id="vehicle-fare-details" class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-center text-gray-600">Select a vehicle type to view fare details</p>
+                    </div>
+                </div>
+
+                <!-- Contact Information -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                        <input type="text" name="full_name" required
+                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Contact Number</label>
+                            <input type="tel"
+                                   name="contact_number"
+                                   required
+                                   pattern="[+][0-9]{11,14}"
+                                   placeholder="+639123456789"
+                                   title="Please enter a valid phone number starting with + and country code"
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-sm text-gray-500 mt-1">Format: +639123456789</p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                            <input type="email" name="email" required
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end">
+                    <button type="submit" id="confirm-booking-btn" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        <i class="fas fa-check-circle mr-2"></i>Confirm Vehicle Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scheduleSelect = document.getElementById('schedule-select');
+    const bookingForm = document.getElementById('vehicle-booking-form');
+    const fullNameInput = document.querySelector('input[name="full_name"]');
+    const plateNumberInput = document.querySelector('input[name="plate_number"]');
+    const contactNumberInput = document.querySelector('input[name="contact_number"]');
+    const emailInput = document.querySelector('input[name="email"]');
+
+    // Debug info
+    const formActionDebug = document.getElementById('form-action-debug');
+    const scheduleIdDebug = document.getElementById('schedule-id-debug');
+
+    // Update debug info
+    if (formActionDebug) formActionDebug.textContent = bookingForm.action;
+    if (scheduleIdDebug) scheduleIdDebug.textContent = document.querySelector('input[name="schedule"]').value;
+
+    // Auto-fill the contact person's name from user info or localStorage
+    if (fullNameInput) {
+        // Check if user info is available from the server
+        const userFullName = '{{ user_info.full_name|default:"" }}';
+
+        if (userFullName) {
+            // Use user info from the server
+            fullNameInput.value = userFullName;
+        } else {
+            // Fall back to localStorage if no user info
+            const savedName = localStorage.getItem('contactPersonName');
+            if (savedName) {
+                fullNameInput.value = savedName;
+            }
+        }
+
+        // Save the name to localStorage when it changes
+        fullNameInput.addEventListener('input', function() {
+            localStorage.setItem('contactPersonName', this.value);
+        });
+    }
+
+    // Auto-fill the plate number from localStorage if available
+    if (plateNumberInput) {
+        const savedPlateNumber = localStorage.getItem('plateNumber');
+        if (savedPlateNumber) {
+            plateNumberInput.value = savedPlateNumber;
+        }
+
+        // Save the plate number to localStorage when it changes
+        plateNumberInput.addEventListener('input', function() {
+            localStorage.setItem('plateNumber', this.value);
+        });
+    }
+
+    // Auto-fill contact number from localStorage if available
+    if (contactNumberInput) {
+        const savedContactNumber = localStorage.getItem('contactNumber');
+        if (savedContactNumber) {
+            contactNumberInput.value = savedContactNumber;
+        }
+
+        // Save contact number to localStorage when it changes
+        contactNumberInput.addEventListener('input', function() {
+            localStorage.setItem('contactNumber', this.value);
+        });
+    }
+
+    // Auto-fill email from user info or localStorage
+    if (emailInput) {
+        // Check if user info is available from the server
+        const userEmail = '{{ user_info.email|default:"" }}';
+
+        if (userEmail) {
+            // Use user info from the server
+            emailInput.value = userEmail;
+        } else {
+            // Fall back to localStorage if no user info
+            const savedEmail = localStorage.getItem('contactEmail');
+            if (savedEmail) {
+                emailInput.value = savedEmail;
+            }
+        }
+
+        // Save email to localStorage when it changes
+        emailInput.addEventListener('input', function() {
+            localStorage.setItem('contactEmail', this.value);
+        });
+    }
+
+    // Update hidden schedule input when schedule is selected
+    if (scheduleSelect) {
+        scheduleSelect.addEventListener('change', function() {
+            const scheduleId = this.value;
+            if (scheduleId) {
+                // Update the hidden input field with the selected schedule ID
+                document.querySelector('input[name="schedule"]').value = scheduleId;
+            }
+        });
+    }
+
+    // Form validation
+    if (bookingForm) {
+        console.log('Adding submit event listener to vehicle booking form');
+        bookingForm.addEventListener('submit', function(e) {
+            console.log('Form submission event triggered');
+            e.preventDefault(); // Prevent default form submission initially
+
+            const scheduleId = document.querySelector('input[name="schedule"]').value;
+            console.log('Form submission - Schedule ID:', scheduleId);
+
+            // Show loading state on button
+            const submitBtn = document.getElementById('confirm-booking-btn');
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+            submitBtn.disabled = true;
+
+            console.log('Form submission started');
+
+            if (!scheduleId) {
+                alert('Please select a schedule before proceeding with the booking.');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            const vehicleType = document.querySelector('select[name="vehicle_type"]').value;
+            const plateNumber = document.querySelector('input[name="plate_number"]').value;
+            const occupantCount = document.querySelector('input[name="occupant_count"]').value;
+            const cargoWeight = document.querySelector('input[name="cargo_weight"]').value;
+
+            console.log('Vehicle Type:', vehicleType);
+            console.log('Plate Number:', plateNumber);
+            console.log('Occupant Count:', occupantCount);
+            console.log('Cargo Weight:', cargoWeight);
+
+            if (!vehicleType) {
+                alert('Please select a vehicle type.');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            if (!plateNumber.trim()) {
+                alert('Please enter a plate number.');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            // Make sure the hidden schedule input is set correctly
+            const scheduleSelect = document.getElementById('schedule-select');
+            if (scheduleSelect && scheduleSelect.value) {
+                document.querySelector('input[name="schedule"]').value = scheduleSelect.value;
+                console.log('Updated schedule ID:', document.querySelector('input[name="schedule"]').value);
+            }
+
+            // Ensure the form action is correct
+            console.log('Form action before submission:', bookingForm.action);
+
+            // Force the form to use the create_booking URL
+            if (!bookingForm.action.includes('create_booking')) {
+                console.log('Updating form action to create_booking URL');
+                bookingForm.action = "{% url 'create_booking' %}";
+                console.log('Updated form action:', bookingForm.action);
+            }
+
+            // Validate phone number
+            const phoneInput = document.querySelector('input[name="contact_number"]');
+            const phoneNumber = phoneInput.value;
+
+            if (!phoneNumber.startsWith('+')) {
+                alert('Phone number must start with + and country code (e.g., +639123456789)');
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            // Force the form to use POST method
+            bookingForm.method = 'post';
+
+            // Double check that all required fields are present
+            const requiredFields = ['schedule', 'booking_type', 'vehicle_type', 'plate_number', 'occupant_count', 'cargo_weight', 'full_name', 'contact_number', 'email'];
+
+            let missingFields = [];
+            requiredFields.forEach(field => {
+                const element = document.querySelector(`[name="${field}"]`);
+                if (!element || !element.value) {
+                    missingFields.push(field);
+                }
+            });
+
+            if (missingFields.length > 0) {
+                console.error('Missing required fields:', missingFields);
+                alert('Error: Missing required fields: ' + missingFields.join(', '));
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+                return false;
+            }
+
+            console.log('Submitting form with action:', bookingForm.action);
+            console.log('Form method:', bookingForm.method);
+            console.log('All required fields are present');
+            bookingForm.submit();
+        });
+    }
+
+    // Handle vehicle type selection
+    const vehicleTypeSelect = document.getElementById('vehicle_type');
+    const occupantInput = document.getElementById('occupant_count');
+    const cargoInput = document.getElementById('cargo_weight');
+    const maxOccupantsInfo = document.getElementById('max-occupants-info');
+    const maxCargoInfo = document.getElementById('max-cargo-info');
+
+    if (vehicleTypeSelect) {
+        vehicleTypeSelect.addEventListener('change', function() {
+            if (this.selectedIndex === -1) return;
+
+            const selectedOption = this.options[this.selectedIndex];
+            const maxOccupants = selectedOption.dataset.maxOccupants;
+            const maxCargo = selectedOption.dataset.maxCargo;
+
+            // Update max values and info text
+            if (maxOccupants) {
+                occupantInput.max = maxOccupants;
+                maxOccupantsInfo.textContent = ` (Max: ${maxOccupants})`;
+            }
+            if (maxCargo) {
+                cargoInput.max = maxCargo;
+                maxCargoInfo.textContent = ` (Max: ${maxCargo} tons)`;
+            }
+
+            // Validate current values
+            if (parseInt(occupantInput.value) > parseInt(maxOccupants)) {
+                occupantInput.value = maxOccupants;
+            }
+            if (parseFloat(cargoInput.value) > parseFloat(maxCargo)) {
+                cargoInput.value = maxCargo;
+            }
+        });
+    }
+
+    // Add validation for occupants and cargo
+    if (occupantInput) {
+        occupantInput.addEventListener('change', function() {
+            if (!vehicleTypeSelect || vehicleTypeSelect.selectedIndex === -1) return;
+
+            const maxOccupants = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxOccupants;
+            if (maxOccupants && parseInt(this.value) > parseInt(maxOccupants)) {
+                alert(`Maximum ${maxOccupants} occupants allowed for this vehicle type`);
+                this.value = maxOccupants;
+            }
+        });
+    }
+
+    if (cargoInput) {
+        cargoInput.addEventListener('change', function() {
+            if (!vehicleTypeSelect || vehicleTypeSelect.selectedIndex === -1) return;
+
+            const maxCargo = vehicleTypeSelect.options[vehicleTypeSelect.selectedIndex].dataset.maxCargo;
+            if (maxCargo && parseFloat(this.value) > parseFloat(maxCargo)) {
+                alert(`Maximum ${maxCargo} tons of cargo allowed for this vehicle type`);
+                this.value = maxCargo;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

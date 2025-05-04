@@ -1,14 +1,22 @@
 <div class="space-y-2">
     <div class="flex justify-between">
-        <span>Adult Fare</span>
-        <span class="font-semibold">₱{{ adult_total|floatformat:2 }}</span>
+        <span>Regular Adult Fare (₱{{ adult_fare|floatformat:2 }} each)</span>
+        <span class="font-semibold" data-adult-fare="{{ adult_fare }}">₱{{ adult_total|floatformat:2 }}</span>
     </div>
     <div class="flex justify-between">
-        <span>Child Fare</span>
-        <span class="font-semibold">₱{{ child_total|floatformat:2 }}</span>
+        <span>Child Fare (₱{{ child_fare|floatformat:2 }} each)</span>
+        <span class="font-semibold" data-child-fare="{{ child_fare }}">₱{{ child_total|floatformat:2 }}</span>
+    </div>
+    <div class="flex justify-between">
+        <span>Student Fare (₱{{ student_fare|floatformat:2 }} each)</span>
+        <span class="font-semibold" data-student-fare="{{ student_fare }}">₱{{ student_total|floatformat:2 }}</span>
+    </div>
+    <div class="flex justify-between">
+        <span>Senior Citizen Fare (₱{{ senior_fare|floatformat:2 }} each)</span>
+        <span class="font-semibold" data-senior-fare="{{ senior_fare }}">₱{{ senior_total|floatformat:2 }}</span>
     </div>
     <div class="border-t pt-2 flex justify-between font-bold">
         <span>Total Amount</span>
-        <span class="text-blue-600">₱{{ total|floatformat:2 }}</span>
+        <span class="text-blue-600">₱<span id="total-amount">{{ total|floatformat:2 }}</span></span>
     </div>
 </div>

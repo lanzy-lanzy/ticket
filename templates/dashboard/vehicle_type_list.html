@@ -2,8 +2,8 @@
 <div id="vehicle-type-{{ vehicle_type.id }}" class="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:shadow transition-shadow duration-200">
     <div class="flex-1">
         <div class="flex items-center space-x-3">
-            <div class="bg-blue-100 rounded-full p-2">
-                <i class="fas fa-truck text-blue-600"></i>
+            <div class="bg-green-100 rounded-full p-2">
+                <i class="fas fa-truck text-green-600"></i>
             </div>
             <div>
                 <h4 class="font-medium text-gray-900">{{ vehicle_type.name }}</h4>
@@ -17,7 +17,7 @@
     </div>
     <div class="flex items-center space-x-3">
         <button onclick="editVehicleType('{{ vehicle_type.id }}', '{{ vehicle_type.name }}', '{{ vehicle_type.max_occupants }}', '{{ vehicle_type.max_cargo_weight }}', '{{ vehicle_type.base_fare }}')"
-                class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors">
+                class="text-green-600 hover:text-green-800 p-2 rounded-full hover:bg-green-50 transition-colors">
             <i class="fas fa-edit"></i>
         </button>
         <button hx-delete="{% url 'delete_vehicle_type' vehicle_type.id %}"

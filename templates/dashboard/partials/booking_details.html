@@ -94,6 +94,18 @@
                             <i class="fas fa-child text-gray-400 w-5 mr-2"></i>
                             <span class="text-gray-600">{{ booking.child_passengers }} Child(ren)</span>
                         </div>
+                        {% if booking.student_passengers > 0 %}
+                        <div class="flex items-center">
+                            <i class="fas fa-user-graduate text-gray-400 w-5 mr-2"></i>
+                            <span class="text-gray-600">{{ booking.student_passengers }} Student(s)</span>
+                        </div>
+                        {% endif %}
+                        {% if booking.senior_passengers > 0 %}
+                        <div class="flex items-center">
+                            <i class="fas fa-user-clock text-gray-400 w-5 mr-2"></i>
+                            <span class="text-gray-600">{{ booking.senior_passengers }} Senior Citizen(s)</span>
+                        </div>
+                        {% endif %}
 
                         <!-- Passenger Names Section -->
                         {% if booking.passengers.all %}
@@ -103,9 +115,18 @@
                                 <ul class="divide-y divide-blue-100">
                                     {% for passenger in booking.passengers.all %}
                                     <li class="py-2 flex items-center">
-                                        <i class="{% if passenger.passenger_type == 'adult' %}fas fa-user{% else %}fas fa-child{% endif %} text-blue-500 w-5 mr-2"></i>
+                                        <i class="{% if passenger.passenger_type == 'adult' %}fas fa-user
+                                                {% elif passenger.passenger_type == 'child' %}fas fa-child
+                                                {% elif passenger.passenger_type == 'student' %}fas fa-user-graduate
+                                                {% elif passenger.passenger_type == 'senior' %}fas fa-user-clock
+                                                {% endif %} text-blue-500 w-5 mr-2"></i>
                                         <span class="text-gray-700">{{ passenger.full_name }}</span>
-                                        <span class="ml-auto text-xs px-2 py-1 rounded-full {% if passenger.passenger_type == 'adult' %}bg-blue-100 text-blue-700{% else %}bg-purple-100 text-purple-700{% endif %}">
+                                        <span class="ml-auto text-xs px-2 py-1 rounded-full
+                                                {% if passenger.passenger_type == 'adult' %}bg-blue-100 text-blue-700
+                                                {% elif passenger.passenger_type == 'child' %}bg-purple-100 text-purple-700
+                                                {% elif passenger.passenger_type == 'student' %}bg-green-100 text-green-700
+                                                {% elif passenger.passenger_type == 'senior' %}bg-orange-100 text-orange-700
+                                                {% endif %}">
                                             {{ passenger.get_passenger_type_display }}
                                         </span>
                                     </li>
@@ -124,6 +145,18 @@
                             <div class="flex items-center">
                                 <i class="fas fa-money-bill text-gray-400 w-5 mr-2"></i>
                                 <span class="text-gray-600">Child Fare: ₱{{ booking.schedule.child_fare }}</span>
+                            </div>
+                        {% endif %}
+                        {% if booking.schedule.student_fare %}
+                            <div class="flex items-center">
+                                <i class="fas fa-money-bill text-gray-400 w-5 mr-2"></i>
+                                <span class="text-gray-600">Student Fare: ₱{{ booking.schedule.student_fare }}</span>
+                            </div>
+                        {% endif %}
+                        {% if booking.schedule.senior_fare %}
+                            <div class="flex items-center">
+                                <i class="fas fa-money-bill text-gray-400 w-5 mr-2"></i>
+                                <span class="text-gray-600">Senior Citizen Fare: ₱{{ booking.schedule.senior_fare }}</span>
                             </div>
                         {% endif %}
                     {% endif %}
@@ -175,6 +208,18 @@
                             <span class="text-blue-100">Child Fare Total:</span>
                             <span class="font-medium">₱{{ booking.child_fare_total }}</span>
                         </p>
+                        {% if booking.student_passengers > 0 %}
+                        <p class="flex justify-between">
+                            <span class="text-blue-100">Student Fare Total:</span>
+                            <span class="font-medium">₱{{ booking.student_fare_total }}</span>
+                        </p>
+                        {% endif %}
+                        {% if booking.senior_passengers > 0 %}
+                        <p class="flex justify-between">
+                            <span class="text-blue-100">Senior Citizen Fare Total:</span>
+                            <span class="font-medium">₱{{ booking.senior_fare_total }}</span>
+                        </p>
+                        {% endif %}
                     {% endif %}
                     {% if booking.booking_type == 'vehicle' %}
                         <p class="flex justify-between">
@@ -355,6 +400,26 @@
                         <span>Child Fare:</span>
                         <span>₱${"{{ booking.child_fare_rate }}"}</span>
                     </div>
+                    {% if booking.student_passengers > 0 %}
+                    <div class="info-row">
+                        <span>Student Passengers:</span>
+                        <span>${"{{ booking.student_passengers }}"}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Student Fare:</span>
+                        <span>₱${"{{ booking.student_fare_rate }}"}</span>
+                    </div>
+                    {% endif %}
+                    {% if booking.senior_passengers > 0 %}
+                    <div class="info-row">
+                        <span>Senior Passengers:</span>
+                        <span>${"{{ booking.senior_passengers }}"}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Senior Fare:</span>
+                        <span>₱${"{{ booking.senior_fare_rate }}"}</span>
+                    </div>
+                    {% endif %}
                     {% endif %}
 
                     {% if booking.booking_type == 'vehicle' %}
