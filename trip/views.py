@@ -54,6 +54,12 @@ def register_view(request):
         if form.is_valid():
             user = form.save()
             username = form.cleaned_data.get('username')
+
+            # Store contact number in session for later use
+            contact_number = form.cleaned_data.get('contact_number')
+            if contact_number:
+                request.session['user_contact_number'] = contact_number
+
             messages.success(request, f"Account created for {username}! You can now log in.")
             return redirect('login')
         else:
@@ -284,10 +290,37 @@ def booking(request):
             messages.error(request, "The selected schedule does not exist.")
             return redirect('booking')
 
+    # Get user information if authenticated
+    user_info = {}
+    if request.user.is_authenticated:
+        user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+
+        # Get contact number from session if available
+        contact_number = request.session.get('user_contact_number', '')
+
+        # If not in session, try to get from recent bookings
+        if not contact_number:
+            try:
+                recent_booking = Booking.objects.filter(
+                    email=request.user.email
+                ).order_by('-created_at').first()
+
+                if recent_booking:
+                    contact_number = recent_booking.contact_number
+            except Exception as e:
+                print(f"Error getting contact number: {str(e)}")
+
+        user_info = {
+            'full_name': user_full_name,
+            'email': request.user.email,
+            'contact_number': contact_number
+        }
+
     context = {
         'schedules': schedules,
         'vehicle_types': vehicle_types,
         'selected_schedule': selected_schedule,
+        'user_info': user_info,
     }
 
     return render(request, 'booking.html', context)
@@ -441,7 +474,9 @@ def get_schedule_fares(request, schedule_id):
     schedule = get_object_or_404(Schedule, id=schedule_id)
     return JsonResponse({
         'adult_fare': str(schedule.adult_fare),
-        'child_fare': str(schedule.child_fare)
+        'child_fare': str(schedule.child_fare),
+        'student_fare': str(schedule.student_fare) if schedule.student_fare else str(schedule.adult_fare),
+        'senior_fare': str(schedule.senior_fare) if schedule.senior_fare else str(schedule.adult_fare)
     })
 
 def get_booking_details(request, booking_reference):
@@ -1503,6 +1538,11 @@ def reports_view(request):
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
 
+    # Get vehicle list specific filters
+    vehicle_departure_date = request.GET.get('vehicle_departure_date', '')
+    selected_vehicle_schedule = request.GET.get('vehicle_schedule', '')
+    selected_vehicle_type = request.GET.get('vehicle_type', '')
+
     # Get revenue report specific filters
     selected_payment_method = request.GET.get('payment_method', '')
     selected_booking_type = request.GET.get('booking_type', '')
@@ -1683,6 +1723,58 @@ def reports_view(request):
         'full_name'
     )
 
+    # Get vehicle bookings list data
+    vehicle_list_query = Booking.objects.filter(
+        booking_type='vehicle',
+        is_paid=True
+    ).select_related(
+        'schedule',
+        'schedule__route',
+        'schedule__vessel',
+        'vehicle_type'
+    )
+
+    # Apply vehicle list specific filters
+    if vehicle_departure_date:
+        try:
+            vehicle_date_obj = timezone.datetime.strptime(vehicle_departure_date, '%Y-%m-%d').date()
+            vehicle_list_query = vehicle_list_query.filter(
+                schedule__departure_datetime__date=vehicle_date_obj
+            )
+        except ValueError:
+            # Invalid date format, ignore filter
+            pass
+
+    if selected_vehicle_schedule:
+        vehicle_list_query = vehicle_list_query.filter(
+            schedule_id=selected_vehicle_schedule
+        )
+
+    if selected_vehicle_type:
+        vehicle_list_query = vehicle_list_query.filter(
+            vehicle_type_id=selected_vehicle_type
+        )
+
+    # Apply the same route and vessel filters as the main report
+    if selected_route:
+        vehicle_list_query = vehicle_list_query.filter(
+            schedule__route_id=selected_route
+        )
+
+    if selected_vessel:
+        vehicle_list_query = vehicle_list_query.filter(
+            schedule__vessel_id=selected_vessel
+        )
+
+    # Order by departure date and customer name
+    vehicle_list = vehicle_list_query.order_by(
+        'schedule__departure_datetime',
+        'full_name'
+    )
+
+    # Get all vehicle types for the filter dropdown
+    vehicle_types = VehicleType.objects.all().order_by('name')
+
     # Get revenue breakdown data
 
     # 1. Revenue by booking type
@@ -1694,10 +1786,15 @@ def reports_view(request):
         total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
     )['total']
 
+    cargo_revenue = bookings.filter(booking_type='cargo').aggregate(
+        total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+    )['total']
+
     # Calculate percentages
-    total_revenue = passenger_revenue + vehicle_revenue
+    total_revenue = passenger_revenue + vehicle_revenue + cargo_revenue
     passenger_revenue_percent = round((passenger_revenue / total_revenue) * 100) if total_revenue > 0 else 0
     vehicle_revenue_percent = round((vehicle_revenue / total_revenue) * 100) if total_revenue > 0 else 0
+    cargo_revenue_percent = round((cargo_revenue / total_revenue) * 100) if total_revenue > 0 else 0
 
     # 2. Revenue by payment method
     payments = Payment.objects.filter(
@@ -1814,7 +1911,14 @@ def reports_view(request):
         'adult_revenue': adult_revenue,
         'child_revenue': child_revenue,
         'student_revenue': student_revenue,
-        'senior_revenue': senior_revenue
+        'senior_revenue': senior_revenue,
+
+        # Vehicle data
+        'vehicle_list': vehicle_list,
+        'vehicle_types': vehicle_types,
+        'selected_vehicle_schedule': selected_vehicle_schedule,
+        'vehicle_departure_date': vehicle_departure_date,
+        'selected_vehicle_type': selected_vehicle_type
     }
 
     return render(request, 'dashboard/reports.html', context)
@@ -3425,13 +3529,176 @@ def export_report(request):
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
 
+    # Get cargo list specific filters
+    cargo_departure_date = request.GET.get('cargo_departure_date', '')
+    selected_cargo_schedule = request.GET.get('cargo_schedule', '')
+    min_weight = request.GET.get('min_weight', '')
+    max_weight = request.GET.get('max_weight', '')
+
+    # Get vehicle list specific filters
+    vehicle_departure_date = request.GET.get('vehicle_departure_date', '')
+    selected_vehicle_schedule = request.GET.get('vehicle_schedule', '')
+    selected_vehicle_type = request.GET.get('vehicle_type', '')
+
     # Get revenue report specific filters
     selected_payment_method = request.GET.get('payment_method', '')
     selected_booking_type = request.GET.get('booking_type', '')
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    if report_type == 'boarding':
+    if report_type == 'cargo':
+        # Export cargo list
+        # Base queryset for cargo bookings
+        cargo_list_query = Booking.objects.filter(
+            booking_type='cargo',
+            is_paid=True
+        ).select_related(
+            'schedule',
+            'schedule__route',
+            'schedule__vessel'
+        )
+
+        # Apply cargo list specific filters
+        if cargo_departure_date:
+            try:
+                cargo_date_obj = timezone.datetime.strptime(cargo_departure_date, '%Y-%m-%d').date()
+                cargo_list_query = cargo_list_query.filter(
+                    schedule__departure_datetime__date=cargo_date_obj
+                )
+            except ValueError:
+                # Invalid date format, ignore filter
+                pass
+
+        if selected_cargo_schedule:
+            cargo_list_query = cargo_list_query.filter(
+                schedule_id=selected_cargo_schedule
+            )
+
+        if min_weight:
+            try:
+                min_weight_float = float(min_weight)
+                cargo_list_query = cargo_list_query.filter(
+                    cargo_weight__gte=min_weight_float
+                )
+            except ValueError:
+                # Invalid format, ignore filter
+                pass
+
+        if max_weight:
+            try:
+                max_weight_float = float(max_weight)
+                cargo_list_query = cargo_list_query.filter(
+                    cargo_weight__lte=max_weight_float
+                )
+            except ValueError:
+                # Invalid format, ignore filter
+                pass
+
+        # Apply the same route and vessel filters as the main report
+        if selected_route:
+            cargo_list_query = cargo_list_query.filter(
+                schedule__route_id=selected_route
+            )
+
+        if selected_vessel:
+            cargo_list_query = cargo_list_query.filter(
+                schedule__vessel_id=selected_vessel
+            )
+
+        # Order by departure date and customer name
+        cargo_list = cargo_list_query.order_by(
+            'schedule__departure_datetime',
+            'full_name'
+        )
+
+        # Prepare data for export
+        data = {
+            'title': 'Cargo Bookings List',
+            'user': request.user,
+            'generated_at': timezone.now(),
+            'cargo_list': cargo_list,
+            'cargo_count': cargo_list.count(),
+        }
+
+        if export_format == 'pdf':
+            return export_cargo_pdf(data)
+        elif export_format == 'excel':
+            return export_cargo_excel(data)
+        elif export_format == 'csv':
+            return export_cargo_csv(data)
+        else:
+            return HttpResponse('Invalid export format', status=400)
+
+    elif report_type == 'vehicle':
+        # Export vehicle list
+        # Base queryset for vehicle bookings
+        vehicle_list_query = Booking.objects.filter(
+            booking_type='vehicle',
+            is_paid=True
+        ).select_related(
+            'schedule',
+            'schedule__route',
+            'schedule__vessel',
+            'vehicle_type'
+        )
+
+        # Apply vehicle list specific filters
+        if vehicle_departure_date:
+            try:
+                vehicle_date_obj = timezone.datetime.strptime(vehicle_departure_date, '%Y-%m-%d').date()
+                vehicle_list_query = vehicle_list_query.filter(
+                    schedule__departure_datetime__date=vehicle_date_obj
+                )
+            except ValueError:
+                # Invalid date format, ignore filter
+                pass
+
+        if selected_vehicle_schedule:
+            vehicle_list_query = vehicle_list_query.filter(
+                schedule_id=selected_vehicle_schedule
+            )
+
+        if selected_vehicle_type:
+            vehicle_list_query = vehicle_list_query.filter(
+                vehicle_type_id=selected_vehicle_type
+            )
+
+        # Apply the same route and vessel filters as the main report
+        if selected_route:
+            vehicle_list_query = vehicle_list_query.filter(
+                schedule__route_id=selected_route
+            )
+
+        if selected_vessel:
+            vehicle_list_query = vehicle_list_query.filter(
+                schedule__vessel_id=selected_vessel
+            )
+
+        # Order by departure date and customer name
+        vehicle_list = vehicle_list_query.order_by(
+            'schedule__departure_datetime',
+            'full_name'
+        )
+
+        # Prepare data for export
+        data = {
+            'title': 'Vehicle Bookings List',
+            'user': request.user,
+            'generated_at': timezone.now(),
+            'vehicle_list': vehicle_list,
+            'vehicle_count': vehicle_list.count(),
+        }
+
+        if export_format == 'pdf':
+            return export_vehicle_pdf(data)
+        elif export_format == 'excel':
+            return export_vehicle_excel(data)
+        elif export_format == 'csv':
+            return export_vehicle_csv(data)
+        else:
+            return HttpResponse('Invalid export format', status=400)
+
+    elif report_type == 'boarding':
         # Export passenger boarding list
         # Base queryset for passengers
         passenger_list_query = Passenger.objects.select_related(
@@ -3543,6 +3810,10 @@ def export_report(request):
             total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
         )['total']
 
+        cargo_revenue = bookings.filter(booking_type='cargo').aggregate(
+            total=Coalesce(Sum('total_fare'), Value(0, output_field=DecimalField()))
+        )['total']
+
         # 2. Revenue by payment method
         payments = Payment.objects.filter(
             booking__in=bookings
@@ -3613,11 +3884,12 @@ def export_report(request):
             'generated_at': timezone.now(),
             'bookings': bookings,
             'booking_count': bookings.count(),
-            'total_revenue': passenger_revenue + vehicle_revenue,
+            'total_revenue': passenger_revenue + vehicle_revenue + cargo_revenue,
 
             # Revenue breakdown data
             'passenger_revenue': passenger_revenue,
             'vehicle_revenue': vehicle_revenue,
+            'cargo_revenue': cargo_revenue,
 
             # Payment method data
             'cash_payment_count': cash_payment_count,
@@ -3741,6 +4013,64 @@ def export_boarding_csv(data):
 
     return response
 
+def export_cargo_csv(data):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename=cargo_list_{timezone.now().strftime("%Y%m%d_%H%M")}.csv'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Booking Reference',
+        'Customer Name',
+        'Weight (tons)',
+        'Route',
+        'Departure Date/Time',
+        'Vessel',
+        'Status'
+    ])
+
+    for cargo in data['cargo_list']:
+        writer.writerow([
+            cargo.booking_reference,
+            cargo.full_name,
+            f"{cargo.cargo_weight:.2f}",
+            cargo.schedule.route.name if cargo.schedule and cargo.schedule.route else 'N/A',
+            cargo.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if cargo.schedule else 'N/A',
+            cargo.schedule.vessel.name if cargo.schedule and cargo.schedule.vessel else 'N/A',
+            'Confirmed' if cargo.is_paid else 'Pending'
+        ])
+
+    return response
+
+def export_vehicle_csv(data):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename=vehicle_list_{timezone.now().strftime("%Y%m%d_%H%M")}.csv'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Booking Reference',
+        'Customer Name',
+        'Vehicle Type',
+        'Plate Number',
+        'Route',
+        'Departure Date/Time',
+        'Vessel',
+        'Status'
+    ])
+
+    for vehicle in data['vehicle_list']:
+        writer.writerow([
+            vehicle.booking_reference,
+            vehicle.full_name,
+            vehicle.vehicle_type.name if vehicle.vehicle_type else 'N/A',
+            vehicle.plate_number or 'N/A',
+            vehicle.schedule.route.name if vehicle.schedule and vehicle.schedule.route else 'N/A',
+            vehicle.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if vehicle.schedule else 'N/A',
+            vehicle.schedule.vessel.name if vehicle.schedule and vehicle.schedule.vessel else 'N/A',
+            'Confirmed' if vehicle.is_paid else 'Pending'
+        ])
+
+    return response
+
 def export_revenue_csv(data):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename=revenue_report_{data["month"].replace(" ", "_")}.csv'
@@ -3764,6 +4094,7 @@ def export_revenue_csv(data):
     writer.writerow(['REVENUE BY BOOKING TYPE'])
     writer.writerow(['Passenger Bookings', f'₱{data["passenger_revenue"]:,.2f}'])
     writer.writerow(['Vehicle Bookings', f'₱{data["vehicle_revenue"]:,.2f}'])
+    writer.writerow(['Cargo Bookings', f'₱{data["cargo_revenue"]:,.2f}'])
     writer.writerow([])
 
     # Write revenue by payment method
@@ -3801,6 +4132,108 @@ def export_revenue_csv(data):
             f'₱{booking.total_fare:,.2f}'
         ])
 
+    return response
+
+def export_vehicle_pdf(data):
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=vehicle_list_{timezone.now().strftime("%Y%m%d_%H%M")}.pdf'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=landscape(letter),
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    story = []
+    styles = getSampleStyleSheet()
+
+    # Add title and metadata
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=20
+    )
+
+    story.append(Paragraph(f"Vehicle Bookings List", title_style))
+    story.append(Spacer(1, 10))
+
+    # Add generation info
+    info_style = ParagraphStyle(
+        'Info',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=20
+    )
+    story.append(Paragraph(f"Generated: {data['generated_at'].strftime('%Y-%m-%d %H:%M')}", info_style))
+    story.append(Paragraph(f"Generated By: {data['user'].username}", info_style))
+    story.append(Spacer(1, 10))
+
+    # Create the main table
+    table_data = [[
+        'Booking Ref',
+        'Customer Name',
+        'Vehicle Type',
+        'Plate Number',
+        'Route',
+        'Departure',
+        'Status'
+    ]]
+
+    for vehicle in data['vehicle_list']:
+        table_data.append([
+            vehicle.booking_reference,
+            vehicle.full_name,
+            vehicle.vehicle_type.name if vehicle.vehicle_type else 'N/A',
+            vehicle.plate_number or 'N/A',
+            vehicle.schedule.route.name if vehicle.schedule and vehicle.schedule.route else 'N/A',
+            vehicle.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if vehicle.schedule else 'N/A',
+            'Confirmed' if vehicle.is_paid else 'Pending'
+        ])
+
+    # Create and style the table
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+
+    # Add conditional formatting for status column
+    for i, row in enumerate(table_data):
+        if i > 0:  # Skip header row
+            status = row[-1]
+            if status == 'Confirmed':
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (-1, i), (-1, i), colors.lightgreen),
+                    ('TEXTCOLOR', (-1, i), (-1, i), colors.darkgreen),
+                ]))
+            else:
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (-1, i), (-1, i), colors.lightcoral),
+                    ('TEXTCOLOR', (-1, i), (-1, i), colors.darkred),
+                ]))
+
+    story.append(table)
+    story.append(Spacer(1, 20))
+
+    # Add summary
+    summary_style = ParagraphStyle(
+        'Summary',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=6
+    )
+    story.append(Paragraph(f"Total Vehicle Bookings: {data['vehicle_count']}", summary_style))
+
+    doc.build(story)
     return response
 
 def export_boarding_pdf(data):
@@ -4176,6 +4609,103 @@ def export_excel(data):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename=booking_report_{data["month"].replace(" ", "_")}.xlsx'
+    return response
+
+def export_vehicle_excel(data):
+    import xlsxwriter
+    from io import BytesIO
+
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    worksheet = workbook.add_worksheet('Vehicle List')
+
+    # Define styles
+    title_format = workbook.add_format({
+        'bold': True,
+        'font_size': 16,
+        'align': 'center',
+        'valign': 'vcenter'
+    })
+
+    header_format = workbook.add_format({
+        'bold': True,
+        'bg_color': '#4472C4',
+        'color': 'white',
+        'align': 'center',
+        'valign': 'vcenter',
+        'border': 1
+    })
+
+    cell_format = workbook.add_format({
+        'align': 'left',
+        'valign': 'vcenter',
+        'border': 1
+    })
+
+    confirmed_format = workbook.add_format({
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#C6EFCE',
+        'color': '#006100',
+        'border': 1
+    })
+
+    pending_format = workbook.add_format({
+        'align': 'center',
+        'valign': 'vcenter',
+        'bg_color': '#FFC7CE',
+        'color': '#9C0006',
+        'border': 1
+    })
+
+    # Set column widths
+    worksheet.set_column('A:A', 15)  # Booking Reference
+    worksheet.set_column('B:B', 25)  # Customer Name
+    worksheet.set_column('C:C', 20)  # Vehicle Type
+    worksheet.set_column('D:D', 15)  # Plate Number
+    worksheet.set_column('E:E', 20)  # Route
+    worksheet.set_column('F:F', 20)  # Departure
+    worksheet.set_column('G:G', 15)  # Status
+
+    # Write title
+    worksheet.merge_range('A1:G1', 'Vehicle Bookings List', title_format)
+    worksheet.merge_range('A2:G2', f'Generated: {data["generated_at"].strftime("%Y-%m-%d %H:%M")}', cell_format)
+    worksheet.merge_range('A3:G3', f'Generated By: {data["user"].username}', cell_format)
+
+    # Write headers
+    headers = ['Booking Ref', 'Customer Name', 'Vehicle Type', 'Plate Number', 'Route', 'Departure', 'Status']
+    for col, header in enumerate(headers):
+        worksheet.write(4, col, header, header_format)
+
+    # Write data
+    row = 5
+    for vehicle in data['vehicle_list']:
+        worksheet.write(row, 0, vehicle.booking_reference, cell_format)
+        worksheet.write(row, 1, vehicle.full_name, cell_format)
+        worksheet.write(row, 2, vehicle.vehicle_type.name if vehicle.vehicle_type else 'N/A', cell_format)
+        worksheet.write(row, 3, vehicle.plate_number or 'N/A', cell_format)
+        worksheet.write(row, 4, vehicle.schedule.route.name if vehicle.schedule and vehicle.schedule.route else 'N/A', cell_format)
+        worksheet.write(row, 5, vehicle.schedule.departure_datetime.strftime('%Y-%m-%d %H:%M') if vehicle.schedule else 'N/A', cell_format)
+
+        # Use conditional formatting for status
+        status = 'Confirmed' if vehicle.is_paid else 'Pending'
+        status_format = confirmed_format if vehicle.is_paid else pending_format
+        worksheet.write(row, 6, status, status_format)
+
+        row += 1
+
+    # Write summary
+    summary_row = row + 2
+    worksheet.merge_range(f'A{summary_row}:B{summary_row}', f'Total Vehicle Bookings: {data["vehicle_count"]}', title_format)
+
+    workbook.close()
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename=vehicle_list_{timezone.now().strftime("%Y%m%d_%H%M")}.xlsx'
     return response
 
 def export_boarding_excel(data):
@@ -4918,10 +5448,37 @@ def vehicle_booking(request):
             messages.error(request, "The selected schedule does not exist.")
             return redirect('vehicle_booking')
 
+    # Get user information if authenticated
+    user_info = {}
+    if request.user.is_authenticated:
+        user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+
+        # Get contact number from session if available
+        contact_number = request.session.get('user_contact_number', '')
+
+        # If not in session, try to get from recent bookings
+        if not contact_number:
+            try:
+                recent_booking = Booking.objects.filter(
+                    email=request.user.email
+                ).order_by('-created_at').first()
+
+                if recent_booking:
+                    contact_number = recent_booking.contact_number
+            except Exception as e:
+                print(f"Error getting contact number: {str(e)}")
+
+        user_info = {
+            'full_name': user_full_name,
+            'email': request.user.email,
+            'contact_number': contact_number
+        }
+
     context = {
         'schedules': schedules,
         'vehicle_types': vehicle_types,
         'selected_schedule': selected_schedule,
+        'user_info': user_info,
     }
 
     return render(request, 'vehicle_booking.html', context)
@@ -4975,9 +5532,27 @@ def vehicle_booking(request):
     # Get user information if authenticated
     user_info = {}
     if request.user.is_authenticated:
+        user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+
+        # Get contact number from session if available
+        contact_number = request.session.get('user_contact_number', '')
+
+        # If not in session, try to get from recent bookings
+        if not contact_number:
+            try:
+                recent_booking = Booking.objects.filter(
+                    email=request.user.email
+                ).order_by('-created_at').first()
+
+                if recent_booking:
+                    contact_number = recent_booking.contact_number
+            except Exception as e:
+                print(f"Error getting contact number: {str(e)}")
+
         user_info = {
-            'full_name': f"{request.user.first_name} {request.user.last_name}".strip(),
-            'email': request.user.email
+            'full_name': user_full_name,
+            'email': request.user.email,
+            'contact_number': contact_number
         }
 
     context = {

@@ -253,6 +253,24 @@
                     <input type="number" step="0.01" id="child_fare" name="child_fare" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
+
+                <!-- Student Fare -->
+                <div class="form-group">
+                    <label for="student_fare" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-graduation-cap mr-2 text-blue-600"></i>Student Fare
+                    </label>
+                    <input type="number" step="0.01" id="student_fare" name="student_fare" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <!-- Senior Fare -->
+                <div class="form-group">
+                    <label for="senior_fare" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-user-plus mr-2 text-blue-600"></i>Senior Fare
+                    </label>
+                    <input type="number" step="0.01" id="senior_fare" name="senior_fare" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
             </div>
 
             <!-- Notes Textarea -->
@@ -605,6 +623,8 @@
                     document.getElementById('available_cargo_space').value = scheduleData.schedule.available_cargo_space;
                     document.getElementById('adult_fare').value = scheduleData.schedule.adult_fare;
                     document.getElementById('child_fare').value = scheduleData.schedule.child_fare;
+                    document.getElementById('student_fare').value = scheduleData.schedule.student_fare || '';
+                    document.getElementById('senior_fare').value = scheduleData.schedule.senior_fare || '';
                     document.getElementById('status').value = scheduleData.schedule.status;
                     document.getElementById('notes').value = scheduleData.schedule.notes || '';
                     // Make capacity fields read-only when editing

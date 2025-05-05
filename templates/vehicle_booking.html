@@ -227,11 +227,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Auto-fill contact number from localStorage if available
+    // Auto-fill contact number from user info or localStorage
     if (contactNumberInput) {
-        const savedContactNumber = localStorage.getItem('contactNumber');
-        if (savedContactNumber) {
-            contactNumberInput.value = savedContactNumber;
+        // Check if user info is available from the server
+        const userContactNumber = '{{ user_info.contact_number|default:"" }}';
+
+        if (userContactNumber) {
+            // Use user info from the server
+            contactNumberInput.value = userContactNumber;
+        } else {
+            // Fall back to localStorage if no user info
+            const savedContactNumber = localStorage.getItem('contactNumber');
+            if (savedContactNumber) {
+                contactNumberInput.value = savedContactNumber;
+            }
         }
 
         // Save contact number to localStorage when it changes

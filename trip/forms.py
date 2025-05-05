@@ -8,17 +8,22 @@ class UserRegistrationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     first_name = forms.CharField(max_length=30, required=True)
     last_name = forms.CharField(max_length=30, required=True)
-    
+    contact_number = forms.CharField(
+        max_length=15,
+        required=True,
+        help_text="Enter your contact number with country code (e.g., +639123456789)"
+    )
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
-        
+        fields = ['username', 'email', 'first_name', 'last_name', 'contact_number', 'password1', 'password2']
+
     def __init__(self, *args, **kwargs):
         super(UserRegistrationForm, self).__init__(*args, **kwargs)
         # Add Bootstrap classes to form fields
         for field_name in self.fields:
             self.fields[field_name].widget.attrs.update({'class': 'form-control'})
-    
+
     def save(self, commit=True):
         user = super(UserRegistrationForm, self).save(commit=False)
         user.email = self.cleaned_data['email']
@@ -32,8 +37,8 @@ class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
         fields = [
-            'booking_type', 'full_name', 'contact_number', 'email', 
-            'schedule', 'number_of_passengers', 'vehicle_type', 
+            'booking_type', 'full_name', 'contact_number', 'email',
+            'schedule', 'number_of_passengers', 'vehicle_type',
             'plate_number', 'occupant_count', 'cargo_weight'
         ]
         widgets = {
@@ -52,18 +57,18 @@ class BookingForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         booking_type = cleaned_data.get('booking_type')
-        
+
         # Validate vehicle-specific fields if booking type is 'vehicle'
         if booking_type == 'vehicle':
             vehicle_type = cleaned_data.get('vehicle_type')
             plate_number = cleaned_data.get('plate_number')
-            
+
             if not vehicle_type:
                 self.add_error('vehicle_type', 'Vehicle type is required for vehicle bookings.')
-            
+
             if not plate_number:
                 self.add_error('plate_number', 'Plate number is required for vehicle bookings.')
-        
+
         return cleaned_data
 
 class RouteForm(forms.ModelForm):
