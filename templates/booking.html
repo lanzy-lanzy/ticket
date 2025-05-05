@@ -286,7 +286,8 @@
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
                         <input type="text" name="full_name" required
-                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               value="{{ user_info.full_name|default:'' }}">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -297,13 +298,15 @@
                                    pattern="[+][0-9]{11,14}"
                                    placeholder="+639123456789"
                                    title="Please enter a valid phone number starting with + and country code"
-                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   value="{{ user_info.contact_number|default:'' }}">
                             <p class="text-sm text-gray-500 mt-1">Format: +639123456789</p>
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-bold mb-2">Email</label>
                             <input type="email" name="email" required
-                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   value="{{ user_info.email|default:'' }}">
                         </div>
                     </div>
                 </div>
@@ -338,38 +341,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formActionDebug) formActionDebug.textContent = bookingForm.action;
     if (scheduleIdDebug) scheduleIdDebug.textContent = document.querySelector('input[name="schedule"]').value;
 
-    // Store user info from server in global variables for use in other functions
-    window.userFullName = '{{ user_info.full_name|default:"" }}';
-    window.userEmail = '{{ user_info.email|default:"" }}';
-    window.userContactNumber = '{{ user_info.contact_number|default:"" }}';
+    // We're using server-side rendering for contact information fields
+    console.log("Contact information is pre-filled using server-side rendering");
 
-    console.log("User info from server - Name:", window.userFullName, "Email:", window.userEmail, "Contact:", window.userContactNumber);
-
-    // Auto-fill the contact person's name from user info or localStorage
+    // We're now using server-side rendering for contact information fields
+    // Add event listener to the full name input to update the first passenger name
     if (fullNameInput) {
-        if (window.userFullName) {
-            // Use user info from the server
-            fullNameInput.value = window.userFullName;
-            console.log("Autofilled name from server:", window.userFullName);
-
-            // Clear any previously saved name in localStorage to avoid conflicts
-            localStorage.removeItem('contactPersonName');
-        } else {
-            // Fall back to localStorage if no user info
-            const savedName = localStorage.getItem('contactPersonName');
-            if (savedName) {
-                fullNameInput.value = savedName;
-                console.log("Autofilled name from localStorage:", savedName);
-            }
-        }
-
-        // Add event listener to the full name input to update the first passenger name
         fullNameInput.addEventListener('input', function() {
-            // Only save to localStorage if we don't have user info from server
-            if (!window.userFullName) {
-                localStorage.setItem('contactPersonName', this.value);
-            }
-
             // Only update the first passenger name if it exists
             const firstPassengerInput = document.querySelector('input[name="adult_passenger_name_1"]');
             if (firstPassengerInput) {
@@ -378,62 +356,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Auto-fill contact number from user info or localStorage
-    if (contactNumberInput) {
-        if (window.userContactNumber) {
-            // Use user info from the server
-            contactNumberInput.value = window.userContactNumber;
-            console.log("Autofilled contact number from server:", window.userContactNumber);
-
-            // Clear any previously saved contact number in localStorage to avoid conflicts
-            localStorage.removeItem('contactNumber');
-        } else {
-            // Fall back to localStorage if no user info
-            const savedContactNumber = localStorage.getItem('contactNumber');
-            if (savedContactNumber) {
-                contactNumberInput.value = savedContactNumber;
-                console.log("Autofilled contact number from localStorage:", savedContactNumber);
-            }
-        }
-
-        // Save contact number to localStorage when it changes
-        contactNumberInput.addEventListener('input', function() {
-            // Only save to localStorage if we don't have user info from server
-            if (!window.userContactNumber) {
-                localStorage.setItem('contactNumber', this.value);
-            }
-        });
-    }
-
-    // Auto-fill email from user info or localStorage
-    if (emailInput) {
-        if (window.userEmail) {
-            // Use user info from the server
-            emailInput.value = window.userEmail;
-            console.log("Autofilled email from server:", window.userEmail);
-
-            // Clear any previously saved email in localStorage to avoid conflicts
-            localStorage.removeItem('contactEmail');
-        } else {
-            // Fall back to localStorage if no user info
-            const savedEmail = localStorage.getItem('contactEmail');
-            if (savedEmail) {
-                emailInput.value = savedEmail;
-                console.log("Autofilled email from localStorage:", savedEmail);
-            }
-        }
-
-        // Save email to localStorage when it changes
-        emailInput.addEventListener('input', function() {
-            // Only save to localStorage if we don't have user info from server
-            if (!window.userEmail) {
-                localStorage.setItem('contactEmail', this.value);
-            }
-        });
-    }
-
     // Initialize passenger fields after setting up user info
-    updatePassengerFields();
+    // We'll delay this slightly to ensure all user info is properly loaded
+    setTimeout(function() {
+        updatePassengerFields();
+        console.log("Initialized passenger fields with user info");
+    }, 100);
 
     // Update hidden schedule input when schedule is selected
     scheduleSelect.addEventListener('change', function() {
@@ -545,7 +473,11 @@ function fetchPassengerNames() {
                 }
 
                 // Update passenger fields to use the fetched names
-                updatePassengerFields();
+                // We'll delay this slightly to ensure all user info is properly loaded
+                setTimeout(function() {
+                    updatePassengerFields();
+                    console.log("Updated passenger fields with fetched names");
+                }, 200);
             }
         })
         .catch(error => {
@@ -588,9 +520,9 @@ function updatePassengerFields() {
     const studentCount = parseInt(document.getElementById('student_passengers').value) || 0;
     const seniorCount = parseInt(document.getElementById('senior_passengers').value) || 0;
 
-    // Get the previous adult count to determine if we're adding new passengers
-    const previousAdultCount = document.querySelectorAll('[name^="adult_passenger_name_"]').length;
-    const isAddingNewPassenger = adultCount > previousAdultCount;
+    // We don't need to check if we're adding new passengers anymore
+    // Always autofill the first passenger name with the user's name
+    const isAddingNewPassenger = false;
 
     // Create datalist for autocomplete if we have passenger names
     if (passengerNames.length > 0) {
@@ -601,21 +533,12 @@ function updatePassengerFields() {
     const adultContainer = document.getElementById('adult-passenger-fields');
     adultContainer.innerHTML = '';
 
-    // Determine the name to use for the first passenger
+    // Get the contact person's name from the form field
     let firstPassengerName = '';
-
-    // First priority: Use server-provided user name if available
-    if (window.userFullName) {
-        firstPassengerName = window.userFullName;
-        console.log("Using server user name for first passenger:", firstPassengerName);
-    }
-    // Second priority: Use the contact person's name from the form
-    else {
-        const contactPersonName = document.querySelector('input[name="full_name"]').value;
-        if (contactPersonName) {
-            firstPassengerName = contactPersonName;
-            console.log("Using contact person name for first passenger:", firstPassengerName);
-        }
+    const contactPersonName = document.querySelector('input[name="full_name"]').value;
+    if (contactPersonName) {
+        firstPassengerName = contactPersonName;
+        console.log("Using contact person name for first passenger:", firstPassengerName);
     }
 
     for (let i = 1; i <= adultCount; i++) {
