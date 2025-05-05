@@ -365,10 +365,11 @@ def mark_payment_complete(request, booking_reference):
     if request.method == 'POST':
         try:
             booking = get_object_or_404(Booking, booking_reference=booking_reference)
-            payment_method = request.POST.get('payment_method', 'online')
+            payment_method = request.POST.get('payment_method', 'gcash')
 
             print(f"Processing payment completion for booking: {booking_reference}")
             print(f"Booking type: {booking.booking_type}")
+            print(f"Payment method: {payment_method}")
 
             # Use the total_fare that was already calculated and stored in the booking
             if hasattr(booking, 'total_fare') and booking.total_fare:
@@ -379,9 +380,16 @@ def mark_payment_complete(request, booking_reference):
                 if booking.booking_type == 'passenger':
                     adult_passengers = int(booking.adult_passengers or 0)
                     child_passengers = int(booking.child_passengers or 0)
+                    student_passengers = int(booking.student_passengers or 0)
+                    senior_passengers = int(booking.senior_passengers or 0)
+
                     adult_fare = booking.schedule.adult_fare or Decimal('0.00')
                     child_fare = booking.schedule.child_fare or Decimal('0.00')
-                    payment_amount = (adult_passengers * adult_fare) + (child_passengers * child_fare)
+                    student_fare = booking.schedule.student_fare or adult_fare
+                    senior_fare = booking.schedule.senior_fare or adult_fare
+
+                    payment_amount = (adult_passengers * adult_fare) + (child_passengers * child_fare) + \
+                                    (student_passengers * student_fare) + (senior_passengers * senior_fare)
                     print(f"Calculated passenger fare: {payment_amount}")
                 elif booking.booking_type == 'vehicle':
                     # Use the base_fare from vehicle_type
@@ -392,10 +400,12 @@ def mark_payment_complete(request, booking_reference):
                         payment_amount = Decimal('0.00')
                         print("Warning: Vehicle booking without vehicle type")
 
-            # Create payment record
+            # Create payment record with all required fields
             payment = Payment.objects.create(
                 booking=booking,
                 amount_paid=payment_amount,
+                amount_received=payment_amount,  # For GCash, received amount equals paid amount
+                change_amount=Decimal('0.00'),   # No change for GCash payments
                 payment_method=payment_method,
                 payment_date=timezone.now(),
                 payment_reference=f"PAY-{timezone.now().strftime('%Y%m%d')}-{booking_reference[-6:]}"
@@ -1017,45 +1027,7 @@ def get_vessel_capacity(request, vessel_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-def mark_payment_complete(request, booking_reference):
-    """
-    Mark a booking as paid after GCash payment
-    """
-    if request.method == 'POST':
-        try:
-            booking = get_object_or_404(Booking, booking_reference=booking_reference)
-            payment_method = request.POST.get('payment_method', 'online')
-
-            # Calculate payment amount based on booking type
-            payment_amount = 0
-            if booking.booking_type == 'passenger':
-                # Example: $50 per passenger
-                payment_amount = 50 * booking.number_of_passengers
-            elif booking.booking_type == 'vehicle':
-                # Base price for vehicle + additional for passengers
-                base_price = booking.vehicle_type.price if booking.vehicle_type else 100
-                payment_amount = base_price + (20 * booking.occupant_count)
-
-            # Create payment record
-            payment = Payment.objects.create(
-                booking=booking,
-                amount_paid=payment_amount,
-                payment_method=payment_method
-            )
-
-            # Update booking status
-            booking.is_paid = True
-            booking.save()
-
-            messages.success(request, "Payment successful! Your booking is confirmed.")
-            return redirect('booking_confirmation', booking_reference=booking.booking_reference)
-
-        except Booking.DoesNotExist:
-            messages.error(request, "Invalid booking reference.")
-            return redirect('home')
-
-    # If not POST, redirect to payment page
-    return redirect('payment_view')
+# This function has been moved to the main mark_payment_complete function at the top of the file
 import qrcode
 from django.http import HttpResponse
 from io import BytesIO
@@ -2077,23 +2049,7 @@ def get_vessel_capacity(request, vessel_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-# Add this to your payment confirmation view
-def mark_payment_complete(request, booking_reference):
-    booking = get_object_or_404(Booking, booking_reference=booking_reference)
-
-    # Create payment record with ACTUAL booking amount
-    payment = Payment.objects.create(
-        booking=booking,
-        amount=booking.total_amount,  # Make sure you're using the actual booking amount
-        payment_method='cash',
-        payment_reference=f'PAY-{timezone.now().strftime("%Y%m%d")}-{booking_reference[-6:]}',
-    )
-
-    # Mark booking as paid
-    booking.is_paid = True
-    booking.save()
-
-    return redirect('booking_confirmation', booking_reference=booking_reference)
+# This function has been consolidated with the main mark_payment_complete function
 
 import qrcode
 from django.http import HttpResponse
