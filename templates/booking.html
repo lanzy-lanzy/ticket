@@ -169,7 +169,8 @@
                                 <div class="flex items-center space-x-2">
                                     <input type="text" name="adult_passenger_name_1"
                                            class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                           placeholder="Adult Passenger 1 Full Name" required>
+                                           placeholder="Adult Passenger 1 Full Name" required
+                                           list="passenger-names-datalist">
                                 </div>
                             </div>
                         </div>
@@ -340,8 +341,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Store user info from server in global variables for use in other functions
     window.userFullName = '{{ user_info.full_name|default:"" }}';
     window.userEmail = '{{ user_info.email|default:"" }}';
+    window.userContactNumber = '{{ user_info.contact_number|default:"" }}';
 
-    console.log("User info from server - Name:", window.userFullName, "Email:", window.userEmail);
+    console.log("User info from server - Name:", window.userFullName, "Email:", window.userEmail, "Contact:", window.userContactNumber);
 
     // Auto-fill the contact person's name from user info or localStorage
     if (fullNameInput) {
@@ -376,16 +378,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Auto-fill contact number from localStorage if available
+    // Auto-fill contact number from user info or localStorage
     if (contactNumberInput) {
-        const savedContactNumber = localStorage.getItem('contactNumber');
-        if (savedContactNumber) {
-            contactNumberInput.value = savedContactNumber;
+        if (window.userContactNumber) {
+            // Use user info from the server
+            contactNumberInput.value = window.userContactNumber;
+            console.log("Autofilled contact number from server:", window.userContactNumber);
+
+            // Clear any previously saved contact number in localStorage to avoid conflicts
+            localStorage.removeItem('contactNumber');
+        } else {
+            // Fall back to localStorage if no user info
+            const savedContactNumber = localStorage.getItem('contactNumber');
+            if (savedContactNumber) {
+                contactNumberInput.value = savedContactNumber;
+                console.log("Autofilled contact number from localStorage:", savedContactNumber);
+            }
         }
 
         // Save contact number to localStorage when it changes
         contactNumberInput.addEventListener('input', function() {
-            localStorage.setItem('contactNumber', this.value);
+            // Only save to localStorage if we don't have user info from server
+            if (!window.userContactNumber) {
+                localStorage.setItem('contactNumber', this.value);
+            }
         });
     }
 
@@ -522,6 +538,14 @@ function fetchPassengerNames() {
             if (data.success) {
                 passengerNames = data.passenger_names || [];
                 console.log('Fetched passenger names:', passengerNames);
+
+                // Create the datalist immediately after fetching names
+                if (passengerNames.length > 0) {
+                    createPassengerDatalist();
+                }
+
+                // Update passenger fields to use the fetched names
+                updatePassengerFields();
             }
         })
         .catch(error => {
@@ -534,21 +558,27 @@ document.addEventListener('DOMContentLoaded', fetchPassengerNames);
 
 // Function to create a datalist for passenger name autocomplete
 function createPassengerDatalist() {
-    // Check if datalist already exists
-    if (!document.getElementById('passenger-names-datalist')) {
-        const datalist = document.createElement('datalist');
-        datalist.id = 'passenger-names-datalist';
-
-        // Add options from passengerNames array
-        passengerNames.forEach(name => {
-            const option = document.createElement('option');
-            option.value = name;
-            datalist.appendChild(option);
-        });
-
-        // Add datalist to the document
-        document.body.appendChild(datalist);
+    // Remove existing datalist if it exists
+    const existingDatalist = document.getElementById('passenger-names-datalist');
+    if (existingDatalist) {
+        existingDatalist.remove();
     }
+
+    // Create new datalist
+    const datalist = document.createElement('datalist');
+    datalist.id = 'passenger-names-datalist';
+
+    // Add options from passengerNames array
+    passengerNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        datalist.appendChild(option);
+    });
+
+    // Add datalist to the document
+    document.body.appendChild(datalist);
+
+    console.log('Created passenger names datalist with', passengerNames.length, 'options');
 }
 
 // Function to dynamically update passenger name fields

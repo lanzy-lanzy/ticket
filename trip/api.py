@@ -1,6 +1,5 @@
 from django.http import JsonResponse
-from django.db.models import Q
-from .models import Booking, Passenger
+from .models import Passenger
 
 def get_passenger_names(request):
     """API endpoint to fetch passenger names for autofill"""
@@ -8,28 +7,30 @@ def get_passenger_names(request):
         # Get the current user if authenticated
         if request.user.is_authenticated:
             user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
-            
-            # Get unique passenger names from previous bookings
-            # First, get bookings made by this user (based on email or full name)
-            user_bookings = Booking.objects.filter(
-                Q(email=request.user.email) | Q(full_name=user_full_name)
-            )
-            
-            # Then get passengers from these bookings
-            passengers = Passenger.objects.filter(
-                booking__in=user_bookings
-            ).values_list('full_name', flat=True).distinct()
-            
+
+            # Get all passenger names from the database
+            # This will fetch all passenger names for autofill
+            passengers = Passenger.objects.values_list('full_name', flat=True).distinct()
+
+            # Add the current user's name to the list if it's not already there
+            if user_full_name and user_full_name not in passengers:
+                passengers_list = list(passengers)
+                passengers_list.append(user_full_name)
+            else:
+                passengers_list = list(passengers)
+
             # Return the passenger names as JSON
             return JsonResponse({
                 'success': True,
-                'passenger_names': list(passengers)
+                'passenger_names': passengers_list
             })
         else:
-            # If not authenticated, return empty list
+            # If not authenticated, still return all passenger names for autofill
+            passengers = Passenger.objects.values_list('full_name', flat=True).distinct()
+
             return JsonResponse({
                 'success': True,
-                'passenger_names': []
+                'passenger_names': list(passengers)
             })
     except Exception as e:
         return JsonResponse({

@@ -1332,9 +1332,33 @@ def booking(request):
     # Get user information if authenticated
     user_info = {}
     if request.user.is_authenticated:
+        # Get the user's full name and contact information
+        user_full_name = f"{request.user.first_name} {request.user.last_name}".strip()
+
+        # Try to get the most recent booking for this user to get their contact number
+        contact_number = ""
+        try:
+            # Use OR condition to find bookings by this user's email or full name
+            recent_booking = Booking.objects.filter(
+                email=request.user.email
+            ).order_by('-created_at').first()
+
+            if not recent_booking:
+                # Try by full name if no booking found by email
+                recent_booking = Booking.objects.filter(
+                    full_name=user_full_name
+                ).order_by('-created_at').first()
+
+            if recent_booking:
+                contact_number = recent_booking.contact_number
+        except Exception as e:
+            # If there's an error, just continue without the contact number
+            print(f"Error getting contact number: {str(e)}")
+
         user_info = {
-            'full_name': f"{request.user.first_name} {request.user.last_name}".strip(),
-            'email': request.user.email
+            'full_name': user_full_name,
+            'email': request.user.email,
+            'contact_number': contact_number
         }
 
     context = {
