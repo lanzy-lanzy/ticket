@@ -508,6 +508,46 @@ document.addEventListener('DOMContentLoaded', function() {
 // We don't need the updateVehicleFare function anymore since we're using HTMX
 // to update the vehicle fare details
 
+// Store passenger names fetched from the API
+let passengerNames = [];
+
+// Fetch passenger names from the API
+function fetchPassengerNames() {
+    fetch('{% url "get_passenger_names" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                passengerNames = data.passenger_names || [];
+                console.log('Fetched passenger names:', passengerNames);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching passenger names:', error);
+        });
+}
+
+// Call this function when the page loads
+document.addEventListener('DOMContentLoaded', fetchPassengerNames);
+
+// Function to create a datalist for passenger name autocomplete
+function createPassengerDatalist() {
+    // Check if datalist already exists
+    if (!document.getElementById('passenger-names-datalist')) {
+        const datalist = document.createElement('datalist');
+        datalist.id = 'passenger-names-datalist';
+
+        // Add options from passengerNames array
+        passengerNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            datalist.appendChild(option);
+        });
+
+        // Add datalist to the document
+        document.body.appendChild(datalist);
+    }
+}
+
 // Function to dynamically update passenger name fields
 function updatePassengerFields() {
     const adultCount = parseInt(document.getElementById('adult_passengers').value) || 0;
@@ -518,6 +558,11 @@ function updatePassengerFields() {
     // Get the previous adult count to determine if we're adding new passengers
     const previousAdultCount = document.querySelectorAll('[name^="adult_passenger_name_"]').length;
     const isAddingNewPassenger = adultCount > previousAdultCount;
+
+    // Create datalist for autocomplete if we have passenger names
+    if (passengerNames.length > 0) {
+        createPassengerDatalist();
+    }
 
     // Update adult passenger fields
     const adultContainer = document.getElementById('adult-passenger-fields');
@@ -541,7 +586,7 @@ function updatePassengerFields() {
             <input type="text" name="adult_passenger_name_${i}"
                    class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                    placeholder="Regular Adult Passenger ${i} Full Name" required
-                   value="${autofilledValue}">
+                   value="${autofilledValue}" list="passenger-names-datalist">
         `;
         adultContainer.appendChild(field);
     }
@@ -560,7 +605,8 @@ function updatePassengerFields() {
             field.innerHTML = `
                 <input type="text" name="child_passenger_name_${i}"
                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       placeholder="Child Passenger ${i} Full Name" required>
+                       placeholder="Child Passenger ${i} Full Name" required
+                       list="passenger-names-datalist">
             `;
             childFieldsContainer.appendChild(field);
         }
@@ -582,7 +628,8 @@ function updatePassengerFields() {
             field.innerHTML = `
                 <input type="text" name="student_passenger_name_${i}"
                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       placeholder="Student Passenger ${i} Full Name" required>
+                       placeholder="Student Passenger ${i} Full Name" required
+                       list="passenger-names-datalist">
             `;
             studentFieldsContainer.appendChild(field);
         }
@@ -604,7 +651,8 @@ function updatePassengerFields() {
             field.innerHTML = `
                 <input type="text" name="senior_passenger_name_${i}"
                        class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       placeholder="Senior Citizen Passenger ${i} Full Name" required>
+                       placeholder="Senior Citizen Passenger ${i} Full Name" required
+                       list="passenger-names-datalist">
             `;
             seniorFieldsContainer.appendChild(field);
         }

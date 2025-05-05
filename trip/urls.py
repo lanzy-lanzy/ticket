@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import api
 
 urlpatterns = [
     # Authentication URLs
@@ -108,4 +109,7 @@ urlpatterns = [
     path('dashboard/schedules/<int:schedule_id>/get/', views.get_schedule, name='get_schedule'),
     path('ratings/submit/', views.submit_rating, name='submit_rating'),
     path('ratings/<int:rating_id>/details/', views.rating_details, name='rating_details'),
+
+    # Passenger names API for autofill
+    path('api/passenger-names/', api.get_passenger_names, name='get_passenger_names'),
 ]
