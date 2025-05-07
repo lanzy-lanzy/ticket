@@ -617,8 +617,16 @@
                     document.getElementById('schedule_id').value = scheduleData.schedule.id;
                     document.getElementById('vessel').value = scheduleData.schedule.vessel_id;
                     document.getElementById('route').value = scheduleData.schedule.route_id;
-                    document.getElementById('departure_datetime').value = formatDatetimeLocal(new Date(scheduleData.schedule.departure_datetime));
-                    document.getElementById('arrival_datetime').value = formatDatetimeLocal(new Date(scheduleData.schedule.arrival_datetime));
+
+                    // Properly format datetime values from ISO strings
+                    // The server returns ISO format (YYYY-MM-DDTHH:MM:SS.sssZ)
+                    // We need to convert it to the format expected by datetime-local input (YYYY-MM-DDTHH:MM)
+                    const departureDatetime = scheduleData.schedule.departure_datetime.slice(0, 16); // Take only YYYY-MM-DDTHH:MM part
+                    const arrivalDatetime = scheduleData.schedule.arrival_datetime.slice(0, 16); // Take only YYYY-MM-DDTHH:MM part
+
+                    document.getElementById('departure_datetime').value = departureDatetime;
+                    document.getElementById('arrival_datetime').value = arrivalDatetime;
+
                     document.getElementById('available_seats').value = scheduleData.schedule.available_seats;
                     document.getElementById('available_cargo_space').value = scheduleData.schedule.available_cargo_space;
                     document.getElementById('adult_fare').value = scheduleData.schedule.adult_fare;

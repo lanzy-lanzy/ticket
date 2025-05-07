@@ -2100,8 +2100,6 @@ def ratings(request):
 
 @login_required
 @staff_member_required
-@login_required
-@staff_member_required
 def get_schedule(request, schedule_id):
     """API endpoint for getting schedule details"""
     try:
@@ -2119,6 +2117,8 @@ def get_schedule(request, schedule_id):
                 'available_cargo_space': schedule.available_cargo_space,
                 'adult_fare': str(schedule.adult_fare),
                 'child_fare': str(schedule.child_fare),
+                'student_fare': str(schedule.student_fare) if schedule.student_fare else '',
+                'senior_fare': str(schedule.senior_fare) if schedule.senior_fare else '',
                 'status': schedule.status,
                 'notes': schedule.notes
             }
@@ -3065,12 +3065,28 @@ def edit_schedule(request, schedule_id):
         # Update schedule fields
         schedule.vessel_id = request.POST.get('vessel')
         schedule.route_id = request.POST.get('route')
-        schedule.departure_datetime = request.POST.get('departure_datetime')
-        schedule.arrival_datetime = request.POST.get('arrival_datetime')
+
+        # Parse datetime strings from the form
+        departure_datetime = request.POST.get('departure_datetime')
+        arrival_datetime = request.POST.get('arrival_datetime')
+
+        # Assign the datetime values directly
+        schedule.departure_datetime = departure_datetime
+        schedule.arrival_datetime = arrival_datetime
+
         schedule.available_seats = request.POST.get('available_seats')
         schedule.available_cargo_space = request.POST.get('available_cargo_space')
         schedule.adult_fare = request.POST.get('adult_fare')
         schedule.child_fare = request.POST.get('child_fare')
+
+        # Handle optional fare fields
+        student_fare = request.POST.get('student_fare')
+        senior_fare = request.POST.get('senior_fare')
+        if student_fare:
+            schedule.student_fare = student_fare
+        if senior_fare:
+            schedule.senior_fare = senior_fare
+
         schedule.status = request.POST.get('status')
         schedule.notes = request.POST.get('notes')
 
@@ -3434,6 +3450,8 @@ def add_schedule(request):
         available_cargo_space = data.get('available_cargo_space')
         adult_fare = data.get('adult_fare')
         child_fare = data.get('child_fare')
+        student_fare = data.get('student_fare')
+        senior_fare = data.get('senior_fare')
         status = data.get('status', 'scheduled')
         notes = data.get('notes', '')
 
@@ -3455,6 +3473,8 @@ def add_schedule(request):
             available_cargo_space = float(available_cargo_space)
             adult_fare = Decimal(adult_fare) if adult_fare else None
             child_fare = Decimal(child_fare) if child_fare else None
+            student_fare = Decimal(student_fare) if student_fare else None
+            senior_fare = Decimal(senior_fare) if senior_fare else None
         except (Vessel.DoesNotExist, Route.DoesNotExist):
             return JsonResponse({
                 'success': False,
@@ -3476,6 +3496,8 @@ def add_schedule(request):
             available_cargo_space=available_cargo_space,
             adult_fare=adult_fare,
             child_fare=child_fare,
+            student_fare=student_fare,
+            senior_fare=senior_fare,
             status=status,
             notes=notes
         )
@@ -3491,6 +3513,10 @@ def add_schedule(request):
                 'arrival_datetime': schedule.arrival_datetime.isoformat(),
                 'available_seats': schedule.available_seats,
                 'available_cargo_space': schedule.available_cargo_space,
+                'adult_fare': str(schedule.adult_fare),
+                'child_fare': str(schedule.child_fare),
+                'student_fare': str(schedule.student_fare) if schedule.student_fare else '',
+                'senior_fare': str(schedule.senior_fare) if schedule.senior_fare else '',
                 'status': schedule.status
             }
         })
@@ -5340,8 +5366,6 @@ def get_notification_context(request):
 
 @login_required
 @staff_member_required
-@login_required
-@staff_member_required
 def get_schedule(request, schedule_id):
     """API endpoint for getting schedule details"""
     try:
@@ -5359,6 +5383,8 @@ def get_schedule(request, schedule_id):
                 'available_cargo_space': schedule.available_cargo_space,
                 'adult_fare': str(schedule.adult_fare),
                 'child_fare': str(schedule.child_fare),
+                'student_fare': str(schedule.student_fare) if schedule.student_fare else '',
+                'senior_fare': str(schedule.senior_fare) if schedule.senior_fare else '',
                 'status': schedule.status,
                 'notes': schedule.notes
             }

@@ -126,58 +126,8 @@
 
 <!-- Comprehensive Revenue Report -->
 <div class="bg-white rounded-lg shadow mb-6">
-    <div class="p-6 border-b flex justify-between items-center">
+    <div class="p-6 border-b">
         <h2 class="text-lg font-semibold">Comprehensive Revenue Report</h2>
-        <div>
-            <button id="toggleRevenueFilters" class="text-blue-600 hover:text-blue-800">
-                <i class="fas fa-filter mr-1"></i> Filter Options
-            </button>
-        </div>
-    </div>
-
-    <!-- Revenue Report Filters -->
-    <div id="revenueFilters" class="p-6 border-b hidden">
-        <form method="get" class="space-y-4">
-            <!-- Preserve existing filters -->
-            <input type="hidden" name="month" value="{{ month }}">
-            <input type="hidden" name="year" value="{{ year }}">
-            <input type="hidden" name="route" value="{{ selected_route }}">
-            <input type="hidden" name="vessel" value="{{ selected_vessel }}">
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                    <select name="payment_method" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Methods</option>
-                        <option value="cash" {% if selected_payment_method == 'cash' %}selected{% endif %}>Cash</option>
-                        <option value="gcash" {% if selected_payment_method == 'gcash' %}selected{% endif %}>GCash</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Booking Type</label>
-                    <select name="booking_type" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Types</option>
-                        <option value="passenger" {% if selected_booking_type == 'passenger' %}selected{% endif %}>Passenger</option>
-                        <option value="vehicle" {% if selected_booking_type == 'vehicle' %}selected{% endif %}>Vehicle</option>
-                        <option value="cargo" {% if selected_booking_type == 'cargo' %}selected{% endif %}>Cargo</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-                    <div class="flex space-x-2">
-                        <input type="date" name="date_from" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               value="{{ date_from|default:'' }}">
-                        <input type="date" name="date_to" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               value="{{ date_to|default:'' }}">
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    Apply Filters
-                </button>
-            </div>
-        </form>
     </div>
 
     <!-- Revenue Summary Cards -->
@@ -378,58 +328,8 @@
 
 <!-- Passenger Boarding List -->
 <div class="bg-white rounded-lg shadow mb-6">
-    <div class="p-6 border-b flex justify-between items-center">
+    <div class="p-6 border-b">
         <h2 class="text-lg font-semibold">Passenger Boarding List</h2>
-        <div>
-            <button id="toggleBoardingFilters" class="text-blue-600 hover:text-blue-800">
-                <i class="fas fa-filter mr-1"></i> Filter Options
-            </button>
-        </div>
-    </div>
-
-    <!-- Additional Boarding List Filters -->
-    <div id="boardingFilters" class="p-6 border-b hidden">
-        <form method="get" class="space-y-4">
-            <!-- Preserve existing filters -->
-            <input type="hidden" name="month" value="{{ month }}">
-            <input type="hidden" name="year" value="{{ year }}">
-            <input type="hidden" name="route" value="{{ selected_route }}">
-            <input type="hidden" name="vessel" value="{{ selected_vessel }}">
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Schedule Date</label>
-                    <input type="date" name="departure_date" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           value="{{ departure_date|default:'' }}">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
-                    <select name="schedule" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Schedules</option>
-                        {% for schedule in schedules %}
-                            <option value="{{ schedule.id }}" {% if selected_schedule == schedule.id|stringformat:"i" %}selected{% endif %}>
-                                {{ schedule.route.name }} - {{ schedule.departure_datetime|date:"M d, Y H:i" }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Passenger Type</label>
-                    <select name="passenger_type" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Types</option>
-                        <option value="adult" {% if selected_passenger_type == 'adult' %}selected{% endif %}>Regular Adult</option>
-                        <option value="child" {% if selected_passenger_type == 'child' %}selected{% endif %}>Child</option>
-                        <option value="student" {% if selected_passenger_type == 'student' %}selected{% endif %}>Student</option>
-                        <option value="senior" {% if selected_passenger_type == 'senior' %}selected{% endif %}>Senior Citizen</option>
-                    </select>
-                </div>
-            </div>
-            <div class="flex justify-end">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    Apply Filters
-                </button>
-            </div>
-        </form>
     </div>
 
     <!-- Passenger List Table -->
@@ -497,59 +397,8 @@
 
 <!-- Vehicle Bookings List -->
 <div class="bg-white rounded-lg shadow mb-6">
-    <div class="p-6 border-b flex justify-between items-center">
+    <div class="p-6 border-b">
         <h2 class="text-lg font-semibold">Vehicle Bookings List</h2>
-        <div>
-            <button id="toggleVehicleFilters" class="text-blue-600 hover:text-blue-800">
-                <i class="fas fa-filter mr-1"></i> Filter Options
-            </button>
-        </div>
-    </div>
-
-    <!-- Vehicle List Filters -->
-    <div id="vehicleFilters" class="p-6 border-b hidden">
-        <form method="get" class="space-y-4">
-            <!-- Preserve existing filters -->
-            <input type="hidden" name="month" value="{{ month }}">
-            <input type="hidden" name="year" value="{{ year }}">
-            <input type="hidden" name="route" value="{{ selected_route }}">
-            <input type="hidden" name="vessel" value="{{ selected_vessel }}">
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Schedule Date</label>
-                    <input type="date" name="vehicle_departure_date" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           value="{{ vehicle_departure_date|default:'' }}">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Schedule</label>
-                    <select name="vehicle_schedule" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Schedules</option>
-                        {% for schedule in schedules %}
-                            <option value="{{ schedule.id }}" {% if selected_vehicle_schedule == schedule.id|stringformat:"i" %}selected{% endif %}>
-                                {{ schedule.route.name }} - {{ schedule.departure_datetime|date:"M d, Y H:i" }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type</label>
-                    <select name="vehicle_type" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">All Types</option>
-                        {% for vtype in vehicle_types %}
-                            <option value="{{ vtype.id }}" {% if selected_vehicle_type == vtype.id|stringformat:"i" %}selected{% endif %}>
-                                {{ vtype.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="flex justify-end">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    Apply Filters
-                </button>
-            </div>
-        </form>
     </div>
 
     <!-- Vehicle List Table -->
@@ -739,75 +588,6 @@
                     }
                 }
             });
-        }
-
-        // Toggle Boarding Filters
-        const toggleBoardingButton = document.getElementById('toggleBoardingFilters');
-        const boardingFiltersDiv = document.getElementById('boardingFilters');
-
-        if (toggleBoardingButton && boardingFiltersDiv) {
-            toggleBoardingButton.addEventListener('click', function() {
-                if (boardingFiltersDiv.classList.contains('hidden')) {
-                    boardingFiltersDiv.classList.remove('hidden');
-                    toggleBoardingButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-                } else {
-                    boardingFiltersDiv.classList.add('hidden');
-                    toggleBoardingButton.innerHTML = '<i class="fas fa-filter mr-1"></i> Filter Options';
-                }
-            });
-
-            // Show filters if any boarding-specific filter is active
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('departure_date') || urlParams.has('schedule') || urlParams.has('passenger_type')) {
-                boardingFiltersDiv.classList.remove('hidden');
-                toggleBoardingButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-            }
-        }
-
-        // Toggle Revenue Filters
-        const toggleRevenueButton = document.getElementById('toggleRevenueFilters');
-        const revenueFiltersDiv = document.getElementById('revenueFilters');
-
-        if (toggleRevenueButton && revenueFiltersDiv) {
-            toggleRevenueButton.addEventListener('click', function() {
-                if (revenueFiltersDiv.classList.contains('hidden')) {
-                    revenueFiltersDiv.classList.remove('hidden');
-                    toggleRevenueButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-                } else {
-                    revenueFiltersDiv.classList.add('hidden');
-                    toggleRevenueButton.innerHTML = '<i class="fas fa-filter mr-1"></i> Filter Options';
-                }
-            });
-
-            // Show filters if any revenue-specific filter is active
-            if (urlParams.has('payment_method') || urlParams.has('booking_type') ||
-                urlParams.has('date_from') || urlParams.has('date_to')) {
-                revenueFiltersDiv.classList.remove('hidden');
-                toggleRevenueButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-            }
-        }
-
-        // Toggle Vehicle Filters
-        const toggleVehicleButton = document.getElementById('toggleVehicleFilters');
-        const vehicleFiltersDiv = document.getElementById('vehicleFilters');
-
-        if (toggleVehicleButton && vehicleFiltersDiv) {
-            toggleVehicleButton.addEventListener('click', function() {
-                if (vehicleFiltersDiv.classList.contains('hidden')) {
-                    vehicleFiltersDiv.classList.remove('hidden');
-                    toggleVehicleButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-                } else {
-                    vehicleFiltersDiv.classList.add('hidden');
-                    toggleVehicleButton.innerHTML = '<i class="fas fa-filter mr-1"></i> Filter Options';
-                }
-            });
-
-            // Show filters if any vehicle-specific filter is active
-            if (urlParams.has('vehicle_departure_date') || urlParams.has('vehicle_schedule') ||
-                urlParams.has('vehicle_type')) {
-                vehicleFiltersDiv.classList.remove('hidden');
-                toggleVehicleButton.innerHTML = '<i class="fas fa-times mr-1"></i> Hide Filters';
-            }
         }
     });
 </script>
