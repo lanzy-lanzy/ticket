@@ -1577,6 +1577,9 @@ def reports_view(request):
         departure_datetime__gte=timezone.now()
     ).order_by('departure_datetime')[:30]  # Limit to next 30 schedules
 
+    # Get all vehicle types for the filter dropdown
+    vehicle_types = VehicleType.objects.all().order_by('name')
+
     # Base queryset for the selected month
     bookings = Booking.objects.filter(
         schedule__departure_datetime__year=year,
@@ -1742,6 +1745,8 @@ def reports_view(request):
         passenger_list_query = passenger_list_query.filter(
             booking__schedule__vessel_id=selected_vessel
         )
+
+
 
     # Order by departure date and passenger name
     passenger_list = passenger_list_query.order_by(
@@ -1953,8 +1958,7 @@ def reports_view(request):
         'vehicle_list': vehicle_list,
         'vehicle_types': vehicle_types,
         'selected_vehicle_schedule': selected_vehicle_schedule,
-        'vehicle_departure_date': vehicle_departure_date,
-        'selected_vehicle_type': selected_vehicle_type
+        'vehicle_departure_date': vehicle_departure_date
     }
 
     return render(request, 'dashboard/reports.html', context)

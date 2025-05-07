@@ -342,7 +342,7 @@
             <input type="hidden" name="vessel" value="{{ selected_vessel }}">
 
             <!-- Include passenger filter component -->
-            {% include 'dashboard/components/passenger_filter.html' with passenger_name=passenger_name passenger_type=selected_passenger_type departure_date=departure_date %}
+            {% include 'dashboard/components/passenger_filter.html' with passenger_name=passenger_name passenger_type=selected_passenger_type departure_date=departure_date vessels=vessels selected_vessel=selected_vessel %}
         </form>
     </div>
 
