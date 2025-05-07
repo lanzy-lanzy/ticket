@@ -332,6 +332,20 @@
         <h2 class="text-lg font-semibold">Passenger Boarding List</h2>
     </div>
 
+    <!-- Passenger Filters -->
+    <div class="p-6 border-b">
+        <form method="get" class="space-y-4">
+            <!-- Preserve existing filters -->
+            <input type="hidden" name="month" value="{{ month }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="route" value="{{ selected_route }}">
+            <input type="hidden" name="vessel" value="{{ selected_vessel }}">
+
+            <!-- Include passenger filter component -->
+            {% include 'dashboard/components/passenger_filter.html' with passenger_name=passenger_name passenger_type=selected_passenger_type departure_date=departure_date %}
+        </form>
+    </div>
+
     <!-- Passenger List Table -->
     <div class="overflow-x-auto">
         <table class="w-full">
@@ -399,6 +413,20 @@
 <div class="bg-white rounded-lg shadow mb-6">
     <div class="p-6 border-b">
         <h2 class="text-lg font-semibold">Vehicle Bookings List</h2>
+    </div>
+
+    <!-- Vehicle Filters -->
+    <div class="p-6 border-b">
+        <form method="get" class="space-y-4">
+            <!-- Preserve existing filters -->
+            <input type="hidden" name="month" value="{{ month }}">
+            <input type="hidden" name="year" value="{{ year }}">
+            <input type="hidden" name="route" value="{{ selected_route }}">
+            <input type="hidden" name="vessel" value="{{ selected_vessel }}">
+
+            <!-- Include vehicle filter component -->
+            {% include 'dashboard/components/vehicle_filter.html' with vehicle_plate=vehicle_plate vehicle_type=selected_vehicle_type vehicle_departure_date=vehicle_departure_date vehicle_types=vehicle_types %}
+        </form>
     </div>
 
     <!-- Vehicle List Table -->

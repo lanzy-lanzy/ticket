@@ -1555,11 +1555,13 @@ def reports_view(request):
     departure_date = request.GET.get('departure_date', '')
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
+    passenger_name = request.GET.get('passenger_name', '')
 
     # Get vehicle list specific filters
     vehicle_departure_date = request.GET.get('vehicle_departure_date', '')
     selected_vehicle_schedule = request.GET.get('vehicle_schedule', '')
     selected_vehicle_type = request.GET.get('vehicle_type', '')
+    vehicle_plate = request.GET.get('vehicle_plate', '')
 
     # Get revenue report specific filters
     selected_payment_method = request.GET.get('payment_method', '')
@@ -1724,6 +1726,12 @@ def reports_view(request):
             passenger_type=selected_passenger_type
         )
 
+    # Apply passenger name filter if provided
+    if passenger_name:
+        passenger_list_query = passenger_list_query.filter(
+            full_name__icontains=passenger_name
+        )
+
     # Apply the same route and vessel filters as the main report
     if selected_route:
         passenger_list_query = passenger_list_query.filter(
@@ -1771,6 +1779,12 @@ def reports_view(request):
     if selected_vehicle_type:
         vehicle_list_query = vehicle_list_query.filter(
             vehicle_type_id=selected_vehicle_type
+        )
+
+    # Apply plate number filter if provided
+    if vehicle_plate:
+        vehicle_list_query = vehicle_list_query.filter(
+            plate_number__icontains=vehicle_plate
         )
 
     # Apply the same route and vessel filters as the main report
@@ -1892,6 +1906,10 @@ def reports_view(request):
         'selected_schedule': selected_schedule,
         'selected_passenger_type': selected_passenger_type,
         'departure_date': departure_date,
+        'passenger_name': passenger_name,
+        'vehicle_plate': vehicle_plate,
+        'vehicle_departure_date': vehicle_departure_date,
+        'selected_vehicle_type': selected_vehicle_type,
         'selected_payment_method': selected_payment_method,
         'selected_booking_type': selected_booking_type,
         'date_from': date_from,
@@ -3575,6 +3593,7 @@ def export_report(request):
     departure_date = request.GET.get('departure_date', '')
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
+    passenger_name = request.GET.get('passenger_name', '')
 
     # Get cargo list specific filters
     cargo_departure_date = request.GET.get('cargo_departure_date', '')
@@ -3586,6 +3605,7 @@ def export_report(request):
     vehicle_departure_date = request.GET.get('vehicle_departure_date', '')
     selected_vehicle_schedule = request.GET.get('vehicle_schedule', '')
     selected_vehicle_type = request.GET.get('vehicle_type', '')
+    vehicle_plate = request.GET.get('vehicle_plate', '')
 
     # Get revenue report specific filters
     selected_payment_method = request.GET.get('payment_method', '')
@@ -3710,6 +3730,12 @@ def export_report(request):
                 vehicle_type_id=selected_vehicle_type
             )
 
+        # Apply plate number filter if provided
+        if vehicle_plate:
+            vehicle_list_query = vehicle_list_query.filter(
+                plate_number__icontains=vehicle_plate
+            )
+
         # Apply the same route and vessel filters as the main report
         if selected_route:
             vehicle_list_query = vehicle_list_query.filter(
@@ -3776,6 +3802,12 @@ def export_report(request):
         if selected_passenger_type:
             passenger_list_query = passenger_list_query.filter(
                 passenger_type=selected_passenger_type
+            )
+
+        # Apply passenger name filter if provided
+        if passenger_name:
+            passenger_list_query = passenger_list_query.filter(
+                full_name__icontains=passenger_name
             )
 
         # Apply the same route and vessel filters as the main report
