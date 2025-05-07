@@ -38,6 +38,30 @@
                         <i class="fas fa-envelope text-gray-400 w-5 mr-2"></i>
                         <span class="text-gray-600">{{ booking.email }}</span>
                     </div>
+
+                    {% if booking.emergency_contact_name %}
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <h4 class="text-md font-semibold text-gray-700 mb-2">Emergency Contact</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-user-shield text-gray-400 w-5 mr-2"></i>
+                                <span class="text-gray-600">{{ booking.emergency_contact_name }}</span>
+                            </div>
+                            {% if booking.emergency_contact_number %}
+                            <div class="flex items-center">
+                                <i class="fas fa-phone-alt text-gray-400 w-5 mr-2"></i>
+                                <span class="text-gray-600">{{ booking.emergency_contact_number }}</span>
+                            </div>
+                            {% endif %}
+                            {% if booking.emergency_contact_relationship %}
+                            <div class="flex items-center">
+                                <i class="fas fa-users text-gray-400 w-5 mr-2"></i>
+                                <span class="text-gray-600">{{ booking.emergency_contact_relationship }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 

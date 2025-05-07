@@ -139,6 +139,28 @@
                         <span class="text-gray-600">Email:</span>
                         <span class="font-medium">{{ booking.email }}</span>
                     </p>
+
+                    {% if booking.emergency_contact_name %}
+                    <div class="mt-3 border-t border-gray-200 pt-3">
+                        <p class="text-gray-600 font-medium mb-2">Emergency Contact:</p>
+                        <p class="flex justify-between py-1">
+                            <span class="text-gray-600">Name:</span>
+                            <span class="font-medium">{{ booking.emergency_contact_name }}</span>
+                        </p>
+                        {% if booking.emergency_contact_number %}
+                        <p class="flex justify-between py-1">
+                            <span class="text-gray-600">Contact Number:</span>
+                            <span class="font-medium">{{ booking.emergency_contact_number }}</span>
+                        </p>
+                        {% endif %}
+                        {% if booking.emergency_contact_relationship %}
+                        <p class="flex justify-between py-1">
+                            <span class="text-gray-600">Relationship:</span>
+                            <span class="font-medium">{{ booking.emergency_contact_relationship }}</span>
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 

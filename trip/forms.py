@@ -13,10 +13,27 @@ class UserRegistrationForm(UserCreationForm):
         required=True,
         help_text="Enter your contact number with country code (e.g., +639123456789)"
     )
+    emergency_contact_name = forms.CharField(
+        max_length=200,
+        required=False,
+        help_text="Name of person to contact in case of emergency"
+    )
+    emergency_contact_number = forms.CharField(
+        max_length=15,
+        required=False,
+        help_text="Emergency contact number with country code (e.g., +639123456789)"
+    )
+    emergency_contact_relationship = forms.CharField(
+        max_length=50,
+        required=False,
+        help_text="Relationship to emergency contact (e.g., Parent, Spouse, Friend)"
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'contact_number', 'password1', 'password2']
+        fields = ['username', 'email', 'first_name', 'last_name', 'contact_number',
+                 'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship',
+                 'password1', 'password2']
 
     def __init__(self, *args, **kwargs):
         super(UserRegistrationForm, self).__init__(*args, **kwargs)
@@ -39,7 +56,8 @@ class BookingForm(forms.ModelForm):
         fields = [
             'booking_type', 'full_name', 'contact_number', 'email',
             'schedule', 'number_of_passengers', 'vehicle_type',
-            'plate_number', 'occupant_count', 'cargo_weight'
+            'plate_number', 'occupant_count', 'cargo_weight',
+            'emergency_contact_name', 'emergency_contact_number', 'emergency_contact_relationship'
         ]
         widgets = {
             'booking_type': forms.Select(attrs={'class': 'form-control'}),
@@ -51,7 +69,10 @@ class BookingForm(forms.ModelForm):
             'vehicle_type': forms.Select(attrs={'class': 'form-control'}),
             'plate_number': forms.TextInput(attrs={'class': 'form-control'}),
             'occupant_count': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
-            'cargo_weight': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': '0.1'})
+            'cargo_weight': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'step': '0.1'}),
+            'emergency_contact_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'emergency_contact_number': forms.TextInput(attrs={'class': 'form-control', 'pattern': '[+][0-9]{11,14}', 'placeholder': '+639123456789'}),
+            'emergency_contact_relationship': forms.TextInput(attrs={'class': 'form-control'})
         }
 
     def clean(self):

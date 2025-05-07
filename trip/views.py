@@ -55,10 +55,20 @@ def register_view(request):
             user = form.save()
             username = form.cleaned_data.get('username')
 
-            # Store contact number in session for later use
+            # Store contact number and emergency contact info in session for later use
             contact_number = form.cleaned_data.get('contact_number')
+            emergency_contact_name = form.cleaned_data.get('emergency_contact_name')
+            emergency_contact_number = form.cleaned_data.get('emergency_contact_number')
+            emergency_contact_relationship = form.cleaned_data.get('emergency_contact_relationship')
+
             if contact_number:
                 request.session['user_contact_number'] = contact_number
+            if emergency_contact_name:
+                request.session['emergency_contact_name'] = emergency_contact_name
+            if emergency_contact_number:
+                request.session['emergency_contact_number'] = emergency_contact_number
+            if emergency_contact_relationship:
+                request.session['emergency_contact_relationship'] = emergency_contact_relationship
 
             messages.success(request, f"Account created for {username}! You can now log in.")
             return redirect('login')
@@ -1390,10 +1400,18 @@ def booking(request):
             # If there's an error, just continue without the contact number
             print(f"Error getting contact number: {str(e)}")
 
+        # Get emergency contact info from session if available
+        emergency_contact_name = request.session.get('emergency_contact_name', '')
+        emergency_contact_number = request.session.get('emergency_contact_number', '')
+        emergency_contact_relationship = request.session.get('emergency_contact_relationship', '')
+
         user_info = {
             'full_name': user_full_name,
             'email': request.user.email,
-            'contact_number': contact_number
+            'contact_number': contact_number,
+            'emergency_contact_name': emergency_contact_name,
+            'emergency_contact_number': emergency_contact_number,
+            'emergency_contact_relationship': emergency_contact_relationship
         }
 
     context = {
@@ -2371,6 +2389,9 @@ def create_booking(request):
             full_name=request.POST.get('full_name'),
             contact_number=request.POST.get('contact_number'),
             email=request.POST.get('email'),
+            emergency_contact_name=request.POST.get('emergency_contact_name'),
+            emergency_contact_number=request.POST.get('emergency_contact_number'),
+            emergency_contact_relationship=request.POST.get('emergency_contact_relationship'),
             is_paid=False
         )
 

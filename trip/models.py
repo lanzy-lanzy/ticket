@@ -216,6 +216,11 @@ class Booking(models.Model):
     qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Emergency contact fields
+    emergency_contact_name = models.CharField(max_length=200, blank=True, null=True)
+    emergency_contact_number = models.CharField(max_length=15, blank=True, null=True)
+    emergency_contact_relationship = models.CharField(max_length=50, blank=True, null=True)
+
     # Passenger-only
     number_of_passengers = models.PositiveIntegerField(
         default=1,
