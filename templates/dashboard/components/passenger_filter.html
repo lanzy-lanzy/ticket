@@ -5,13 +5,14 @@ Parameters:
 - passenger_name: Current passenger name filter value
 - passenger_type: Current passenger type filter value
 - departure_date: Current departure date filter value
+- departure_time: Current departure time filter value
 - vessels: List of all vessels for dropdown
 - selected_vessel: Current vessel filter value
 {% endcomment %}
 
 <div class="bg-white rounded-lg p-4 border mb-4">
     <h3 class="text-md font-semibold mb-3">Passenger Filters</h3>
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <!-- Passenger Name Search -->
         <div>
             <label for="passenger_name" class="block text-sm font-medium text-gray-700 mb-1">Passenger Name</label>
@@ -59,6 +60,16 @@ Parameters:
                    id="departure_date"
                    name="departure_date"
                    value="{{ departure_date|default:'' }}"
+                   class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <!-- Departure Time Filter -->
+        <div>
+            <label for="departure_time" class="block text-sm font-medium text-gray-700 mb-1">Departure Time</label>
+            <input type="time"
+                   id="departure_time"
+                   name="departure_time"
+                   value="{{ departure_time|default:'' }}"
                    class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
     </div>

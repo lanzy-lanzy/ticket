@@ -1553,6 +1553,7 @@ def reports_view(request):
 
     # Get passenger boarding list specific filters
     departure_date = request.GET.get('departure_date', '')
+    departure_time = request.GET.get('departure_time', '')
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
     passenger_name = request.GET.get('passenger_name', '')
@@ -1715,6 +1716,20 @@ def reports_view(request):
             passenger_list_query = passenger_list_query.filter(
                 booking__schedule__departure_datetime__date=departure_date_obj
             )
+
+            # Apply time filter if both date and time are provided
+            if departure_time:
+                try:
+                    # Parse the time string into a time object
+                    departure_time_obj = timezone.datetime.strptime(departure_time, '%H:%M').time()
+
+                    # Filter by time - using __time to extract time part from datetime field
+                    passenger_list_query = passenger_list_query.filter(
+                        booking__schedule__departure_datetime__time=departure_time_obj
+                    )
+                except ValueError:
+                    # Invalid time format, ignore time filter
+                    pass
         except ValueError:
             # Invalid date format, ignore filter
             pass
@@ -1911,6 +1926,7 @@ def reports_view(request):
         'selected_schedule': selected_schedule,
         'selected_passenger_type': selected_passenger_type,
         'departure_date': departure_date,
+        'departure_time': departure_time,
         'passenger_name': passenger_name,
         'vehicle_plate': vehicle_plate,
         'vehicle_departure_date': vehicle_departure_date,
@@ -3595,6 +3611,7 @@ def export_report(request):
 
     # Get passenger boarding list specific filters
     departure_date = request.GET.get('departure_date', '')
+    departure_time = request.GET.get('departure_time', '')
     selected_schedule = request.GET.get('schedule', '')
     selected_passenger_type = request.GET.get('passenger_type', '')
     passenger_name = request.GET.get('passenger_name', '')
@@ -3794,6 +3811,20 @@ def export_report(request):
                 passenger_list_query = passenger_list_query.filter(
                     booking__schedule__departure_datetime__date=departure_date_obj
                 )
+
+                # Apply time filter if both date and time are provided
+                if departure_time:
+                    try:
+                        # Parse the time string into a time object
+                        departure_time_obj = timezone.datetime.strptime(departure_time, '%H:%M').time()
+
+                        # Filter by time - using __time to extract time part from datetime field
+                        passenger_list_query = passenger_list_query.filter(
+                            booking__schedule__departure_datetime__time=departure_time_obj
+                        )
+                    except ValueError:
+                        # Invalid time format, ignore time filter
+                        pass
             except ValueError:
                 # Invalid date format, ignore filter
                 pass
