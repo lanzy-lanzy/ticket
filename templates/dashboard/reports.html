@@ -354,6 +354,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booking Ref</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Passenger Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. of Passengers</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Schedule</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departure</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vessel</th>
@@ -367,6 +368,7 @@
                         <td class="px-6 py-4">{{ passenger.booking.booking_reference }}</td>
                         <td class="px-6 py-4">{{ passenger.full_name }}</td>
                         <td class="px-6 py-4">{{ passenger.get_passenger_type_display }}</td>
+                        <td class="px-6 py-4">{{ passenger.booking.passengers.count }}</td>
                         <td class="px-6 py-4">{{ passenger.booking.schedule.route.name }}</td>
                         <td class="px-6 py-4">{{ passenger.booking.schedule.departure_datetime|date:"M d, Y H:i" }}</td>
                         <td class="px-6 py-4">{{ passenger.booking.schedule.vessel.name }}</td>
@@ -380,7 +382,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">No passenger data available for the selected filters</td>
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">No passenger data available for the selected filters</td>
                     </tr>
                 {% endif %}
             </tbody>
